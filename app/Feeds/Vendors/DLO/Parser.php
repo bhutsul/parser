@@ -44,7 +44,9 @@ class Parser extends HtmlParser
     public function getAvail(): ?int
     {
         $availability = $this->getAttr( 'meta[ itemprop="availability"]', 'content' );
-        return $availability === 'https://schema.org/InStock' ? $availability : self::DEFAULT_AVAIL_NUMBER;
+        return $availability === 'https://schema.org/InStock' || $availability === 'InStock'
+            ? self::DEFAULT_AVAIL_NUMBER
+            : 0;
     }
 
     public function getChildProducts( FeedItem $parent_fi ): array
