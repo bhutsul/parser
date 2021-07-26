@@ -6,7 +6,9 @@ use App\Feeds\Feed\FeedItem;
 use App\Feeds\Parser\HtmlParser;
 use App\Feeds\Utils\Link;
 use App\Feeds\Utils\ParserCrawler;
+use App\Helpers\FeedHelper;
 use App\Helpers\StringHelper;
+use PhpOffice\PhpSpreadsheet\Calculation\Statistical\Distributions\F;
 
 
 class Parser extends HtmlParser
@@ -23,7 +25,11 @@ class Parser extends HtmlParser
 
     public function isGroup(): bool
     {
-        return $this->exists('[name*="attribute"]');
+        if ($this->checkIfSameChild()) {
+            return false;
+        }
+
+        return $this->exists('[name*="attribute"]') ;
     }
 
     public function getProduct(): string
@@ -33,7 +39,35 @@ class Parser extends HtmlParser
 
     public function getDescription(): string
     {
-        return $this->getHtml( '#tab-description' );
+        $description = $this->getHtml( '#tab-description');
+
+        return preg_replace('/<ul\b[^>]*>(.*?)<\/ul>/i', '', $description);
+    }
+
+    public function getShortDescription(): array
+    {
+//        $description = [];
+//        $regexes = ['/Dimensions: (\d*[.\d+])"\sx\s*(\d*[.\d+])"\sx\s*(\d*[.\d+]*)/'];
+//
+//        $li_values = $this->getContent('#tab-description li' );
+//        if ($li_values) {
+//            foreach ($li_values as $li_value) {
+//                if (strripos($li_value, 'Dimensions:')) {
+//                    $dims = FeedHelper::getDimsRegexp($li_value, $regexes);
+//                    if (array_filter($dims)) {
+//                        $li_value = 'Dimensions: ';
+//                        $li_value .= 'depth:' . $dims['z'];
+//                        $li_value .= 'height:' . $dims['y'];
+//                        $li_value .= 'width:' . $dims['x'];
+//                    }
+//                }
+//                $description[] = $li_value;
+//            }
+//        }
+        if ( !$this->exists( '#tab-description ul' ) ) {
+            return [];
+        }
+        return $this->getContent('#tab-description ul li' );
     }
 
     public function getImages(): array
@@ -44,6 +78,11 @@ class Parser extends HtmlParser
     public function getMpn(): string
     {
         return $this->product_info['sku'] ?? $this->getText('.sku-section span');
+    }
+
+    public function getBrand(): ?string
+    {
+        return $this->getAttr('.productView', 'data-product-brand');
     }
 
     public function getCostToUs(): float
@@ -73,6 +112,10 @@ class Parser extends HtmlParser
                     $value = $c->filter('td')->getNode(1)->textContent;
                     $attributes[$key] = $value;
                 });
+        }
+
+        if (!$attributes) {
+            return null;
         }
 
         return $attributes;
@@ -150,5 +193,18 @@ class Parser extends HtmlParser
         $option_value = array_shift($option_values);
 
         return $option_value['option_display_name'] . ': ' . $option_value['label'];
+    }
+
+    /**
+     * method for bad request with options
+     * @return bool
+     */
+    private function checkIfSameChild(): bool
+    {
+        if (isset($this->product_info['variants']) && $this->product_info['variants']) {
+            return $this->product_info['sku'] === $this->product_info['variants'][0]['sku'];
+        }
+
+        return false;
     }
 }
