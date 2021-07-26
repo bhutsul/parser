@@ -4,15 +4,19 @@ namespace App\Feeds\Vendors\DLO;
 
 use App\Feeds\Feed\FeedItem;
 use App\Feeds\Parser\HtmlParser;
-use App\Feeds\Utils\Link;
 use App\Feeds\Utils\ParserCrawler;
 use App\Helpers\FeedHelper;
 use App\Helpers\StringHelper;
-use PhpOffice\PhpSpreadsheet\Calculation\Statistical\Distributions\F;
 
 
 class Parser extends HtmlParser
 {
+    public const DIMENSIONS_REGEXES = [
+        'DWH' => '/(\d+[\.]?\d*)"\(\d+[\.]?\d*\scm\)\s[a-zA-Z]\sx\s*(\d+[\.]?\d*)"\(\d+[\.]?\d*\scm\)\s[a-zA-Z]\sx\s*(\d+[\.]?\d*)"\(\d+[\.]?\d*\scm\)\s[a-zA-Z]/i',
+        'HWD' => '/(\d+[\.]?\d*)"[a-zA-Z]\sx\s*(\d+[\.]?\d*)"[a-zA-Z]\sx\s*(\d+[\.]?\d*)"[a-zA-Z]/i',
+        'HWD_DESC' => '/(\d+[\.]?\d*)"\sx\s*(\d+[\.]?\d*)"\sx\s*(\d+[\.]?\d*)/i',
+    ];
+
     private array $product_info = [];
 
     public function beforeParse(): void
@@ -46,28 +50,41 @@ class Parser extends HtmlParser
 
     public function getShortDescription(): array
     {
-//        $description = [];
-//        $regexes = ['/Dimensions: (\d*[.\d+])"\sx\s*(\d*[.\d+])"\sx\s*(\d*[.\d+]*)/'];
-//
-//        $li_values = $this->getContent('#tab-description li' );
-//        if ($li_values) {
-//            foreach ($li_values as $li_value) {
-//                if (strripos($li_value, 'Dimensions:')) {
-//                    $dims = FeedHelper::getDimsRegexp($li_value, $regexes);
-//                    if (array_filter($dims)) {
-//                        $li_value = 'Dimensions: ';
-//                        $li_value .= 'depth:' . $dims['z'];
-//                        $li_value .= 'height:' . $dims['y'];
-//                        $li_value .= 'width:' . $dims['x'];
-//                    }
-//                }
-//                $description[] = $li_value;
-//            }
-//        }
-        if ( !$this->exists( '#tab-description ul' ) ) {
-            return [];
+        $description = [];
+        $exist_short = $this->exists( '#tab-description ul li');
+
+        //check if dimensions in big desc
+        if (!$exist_short && $this->exists( '#tab-description')) {
+            $big_desc = $this->getHtml( '#tab-description');
+
+            if (preg_match(self::DIMENSIONS_REGEXES['HWD_DESC'], $big_desc)) {
+                $this->pushDimsToShortDesc($description, $big_desc, 'HWD_DESC', 2, 1, 3);
+            }
+
+            return $description;
         }
-        return $this->getContent('#tab-description ul li' );
+
+        if (!$exist_short) {
+            return $description;
+        }
+
+
+        //i have searched 2 variants of regex and order of hwd
+        $li_values = $this->getContent('#tab-description ul li' );
+        foreach ($li_values as $li_value) {
+            if (preg_match(self::DIMENSIONS_REGEXES['DWH'], $li_value)) {
+                $this->pushDimsToShortDesc($description, $li_value, 'DWH', 2, 3, 1);
+            }
+            else if (preg_match(self::DIMENSIONS_REGEXES['HWD'], $li_value)) {
+                $this->pushDimsToShortDesc($description, $li_value, 'DWH', 2, 1, 3);
+            }
+            else {
+                $description[] = $li_value;
+            }
+
+        }
+
+        return $description;
     }
 
     public function getImages(): array
@@ -140,7 +157,7 @@ class Parser extends HtmlParser
                 $fi->setRAvail($variant['inventory_level']);
                 $fi->setDimZ($variant['depth']);
                 $fi->setDimY($variant['height']);
-                $fi->setDimx($variant['width']);
+                $fi->setDimX($variant['width']);
                 $fi->setWeight($variant['weight']);
 
                 $child[] = $fi;
@@ -158,7 +175,7 @@ class Parser extends HtmlParser
     private function productUpc(array $product_data): ?string
     {
         if ($product_data['upc'] === 'N/A') {
-            return '';
+            return null;
         }
 
         return $product_data['upc'];
@@ -196,7 +213,7 @@ class Parser extends HtmlParser
     }
 
     /**
-     * method for bad request with options
+     * method for bad request with options(bug, product has select but does not have options)
      * @return bool
      */
     private function checkIfSameChild(): bool
@@ -206,5 +223,34 @@ class Parser extends HtmlParser
         }
 
         return false;
+    }
+
+    /**
+     * have different order of d-w-h
+     * @param array $description
+     * @param string $text
+     * @param string $reg_key
+     * @param int $x
+     * @param int $y
+     * @param int $z
+     * @throws \Exception
+     */
+    private function pushDimsToShortDesc(
+        array &$description,
+        string $text,
+        string $reg_key,
+        int $x,
+        int $y,
+        int $z
+    ): void {
+        if (!isset(self::DIMENSIONS_REGEXES[$reg_key])) {
+            throw new \Exception("$reg_key does not exist");
+        }
+
+        $dims = FeedHelper::getDimsRegexp($text, [self::DIMENSIONS_REGEXES[$reg_key]], $x, $y, $z);
+
+        $description[] = 'Width: ' . $dims['x'];
+        $description[] = 'Height: ' . $dims['y'];
+        $description[] = 'Depth: ' . $dims['z'];
     }
 }
