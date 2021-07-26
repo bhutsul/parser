@@ -11,14 +11,24 @@ use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
 {
+    private array $product_info = [];
+
+    public function beforeParse(): void
+    {
+        $product_id = $this->getAttr('input[name="product_id"]', 'value');
+        if ($product_id) {
+            $this->product_info = $this->executeProduct($product_id);
+        }
+    }
+
     public function isGroup(): bool
     {
-        return $this->exists('.product_options');
+        return $this->exists('[name*="attribute"]');
     }
 
     public function getProduct(): string
     {
-        return $this->getText('h1.productView-title');
+        return $this->product_info['name'] ?? $this->getText('h1.productView-title');
     }
 
     public function getDescription(): string
@@ -33,96 +43,112 @@ class Parser extends HtmlParser
 
     public function getMpn(): string
     {
-        return $this->getText('.sku-section span');
+        return $this->product_info['sku'] ?? $this->getText('.sku-section span');
     }
 
     public function getCostToUs(): float
     {
-        return StringHelper::getMoney($this->getAttr( 'meta[ itemprop="price"]', 'content' ));
+        $money = $this->product_info['price'] ?? $this->getAttr( 'meta[ itemprop="price"]', 'content' );
+
+        return StringHelper::getMoney($money);
     }
 
     public function getAvail(): ?int
     {
         $availability = $this->getAttr( 'meta[ itemprop="availability"]', 'content' );
+
         return $availability === 'https://schema.org/InStock' || $availability === 'InStock'
             ? self::DEFAULT_AVAIL_NUMBER
             : 0;
     }
 
+    public function getAttributes(): ?array
+    {
+        $attributes = [];
+
+        if ($this->exists('table.productView-table tr')) {
+            $this->filter('table.productView-table tr')
+                ->each(function (ParserCrawler $c) use (&$attributes) {
+                    $key   = $c->filter('td')->getNode(0)->textContent;
+                    $value = $c->filter('td')->getNode(1)->textContent;
+                    $attributes[$key] = $value;
+                });
+        }
+
+        return $attributes;
+    }
+
     public function getChildProducts( FeedItem $parent_fi ): array
     {
         $child = [];
+        if (isset($this->product_info['variants']) && $this->product_info['variants']) {
+            foreach ($this->product_info['variants'] as $variant) {
+                $images = $variant['image_url']
+                    ? [$variant['image_url']]
+                    : $this->getImages();
 
-        if ($this->hasSelectAttribute()) {
-            $links = [];
+                $fi = clone $parent_fi;
 
-            $attribute_name = $this->filter('select')->attr('name');
-            $product_id = $this->getAttr('input[name="product_id"]', 'value');
-            $action = $this->getAttr('input[name="action"]', 'value');
+                $fi->setMpn($variant['sku'] ?? '');
+                $fi->setUpc($this->productUpc($variant));
+                $fi->setProduct($this->getChildProductName($variant['option_values']));
+                $fi->setImages($images);
+                $fi->setCostToUs(StringHelper::getMoney($variant['price']));
+                $fi->setRAvail($variant['inventory_level']);
+                $fi->setDimZ($variant['depth']);
+                $fi->setDimY($variant['height']);
+                $fi->setDimx($variant['width']);
+                $fi->setWeight($variant['weight']);
 
-            $this->filter('option')
-                ->each(function (ParserCrawler $c) use (&$links, $attribute_name, $product_id, $action) {
-                    $variant_url = 'https://www.delasco.com/remote/v1/product-attributes/' . $product_id;
-
-                    if ($attribute_value = $c->attr('value')) {
-                        $params = [
-                            'action' => $action,
-                            'product_id' => $product_id,
-                        ];
-                        $params[$attribute_name] = $attribute_value;
-                        $params['qty'] = 1;
-
-                        $links[] = new Link($variant_url, 'POST', $params, 'multipart/form-data');
-                    }
-                });
-
-            $links = array_chunk($links, 10);
-
-            foreach ($links as $links_chunk) {
-                foreach ($this->getVendor()->getDownloader()->fetch($links_chunk, true) as $data) {
-                    $product_data = json_decode($data['data'], true, 512, JSON_THROW_ON_ERROR);
-                    $fi = clone $parent_fi;
-
-                    $fi->setMpn($product_data['data']['sku'] ?? $product_data['data']['v3_variant_id'] ?? '');
-                    $fi->setUpc($product_data['data']['upc']);
-                    $fi->setProduct($this->getProduct());
-                    $fi->setImages($this->getArrayOfImage($product_data) ?? $this->getImages());
-                    $fi->setCostToUs(StringHelper::getMoney($product_data['data']['price']['without_tax']['value'] ?? 0));
-                    $fi->setRAvail($product_data['data']['instock'] ? self::DEFAULT_AVAIL_NUMBER : 1);
-
-                    $child[] = $fi;
-                }
+                $child[] = $fi;
             }
         }
-
 
         return $child;
     }
 
     /**
-     * a lot of products do not have select
-     * @return bool
+     * validate upc
+     * @param array $product_data
+     * @return string|null
      */
-    private function hasSelectAttribute():bool
+    private function productUpc(array $product_data): ?string
     {
-        return (bool)$this->getAttr('select.form-select--small', 'name');
+        if ($product_data['upc'] === 'N/A') {
+            return '';
+        }
+
+        return $product_data['upc'];
     }
 
     /**
-     * response return one image of new product
-     * @param array $product_data
-     * @return array|null
+     * method for all info of product
+     * @param string|array $product_id
+     * @return array
+     * @throws \JsonException
      */
-    private function getArrayOfImage(array $product_data)
+    private function executeProduct(string|array $product_id): array
     {
-        if (!isset($product_data['data']['image']['data'])) {
-            return null;
+        $url = 'https://delasco-live.ae-admin.com/api/product/execute';
+        $params['productId'] = $product_id;
+
+        $data = $this->getVendor()->getDownloader()->get($url, $params);
+
+        return json_decode($data, true, 512, JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * @param array $option_values
+     * @return string
+     */
+    private function getChildProductName(array $option_values): string
+    {
+        if (!$option_values) {
+            return '';
         }
 
-        $pattern = '/{:size}/';
+        $option_value = array_shift($option_values);
 
-        return [
-            preg_replace($pattern, '500x500', $product_data['data']['image']['data'])
-        ];
+        return $option_value['option_display_name'] . ': ' . $option_value['label'];
     }
 }
