@@ -25,6 +25,36 @@ class Parser extends HtmlParser
         if ($product_id) {
             $this->product_info = $this->executeProduct($product_id);
         }
+
+        if ($this->exists( '#tab-description')) {
+            $big_desc = $this->getHtml( '#tab-description');
+
+            if (preg_match(self::DIMENSIONS_REGEXES['HWD_DESC'], $big_desc)) {
+                $dims = FeedHelper::getDimsRegexp($big_desc, [self::DIMENSIONS_REGEXES['HWD_DESC']], 2, 1, 3);
+
+                $this->product_info['depth']  = $dims['z'];
+                $this->product_info['height'] = $dims['y'];
+                $this->product_info['width']  = $dims['x'];
+            }
+            else if ($this->exists( '#tab-description ul li')) {
+                $li_values = $this->getContent('#tab-description ul li');
+
+                foreach ($li_values as $li_value) {
+                    if (preg_match(self::DIMENSIONS_REGEXES['DWH'], $li_value)) {
+                        $dims = FeedHelper::getDimsRegexp($li_value, [self::DIMENSIONS_REGEXES['DWH']], 2, 3, 1);
+                    }
+                    else if (preg_match(self::DIMENSIONS_REGEXES['HWD'], $li_value)) {
+                        $dims = FeedHelper::getDimsRegexp($li_value, [self::DIMENSIONS_REGEXES['HWD']], 2, 1, 3);
+                    }
+
+                    if (isset($dims)) {
+                        $this->product_info['depth']  = $dims['z'];
+                        $this->product_info['height'] = $dims['y'];
+                        $this->product_info['width']  = $dims['x'];
+                    }
+                }
+            }
+        }
     }
 
     public function isGroup(): bool
@@ -50,46 +80,32 @@ class Parser extends HtmlParser
 
     public function getShortDescription(): array
     {
-        $description = [];
-        $exist_short = $this->exists( '#tab-description ul li');
-
-        //check if dimensions in big desc
-        if (!$exist_short && $this->exists( '#tab-description')) {
-            $big_desc = $this->getHtml( '#tab-description');
-
-            if (preg_match(self::DIMENSIONS_REGEXES['HWD_DESC'], $big_desc)) {
-                $this->pushDimsToShortDesc($description, $big_desc, 'HWD_DESC', 2, 1, 3);
-            }
-
-            return $description;
+        if (!$this->exists( '#tab-description ul li')) {
+            return [];
         }
 
-        if (!$exist_short) {
-            return $description;
-        }
-
-
-        //i have searched 2 variants of regex and order of hwd
-        $li_values = $this->getContent('#tab-description ul li' );
-        foreach ($li_values as $li_value) {
-            if (preg_match(self::DIMENSIONS_REGEXES['DWH'], $li_value)) {
-                $this->pushDimsToShortDesc($description, $li_value, 'DWH', 2, 3, 1);
-            }
-            else if (preg_match(self::DIMENSIONS_REGEXES['HWD'], $li_value)) {
-                $this->pushDimsToShortDesc($description, $li_value, 'DWH', 2, 1, 3);
-            }
-            else {
-                $description[] = $li_value;
-            }
-
-        }
-
-        return $description;
+        return $this->getContent('#tab-description ul li' );
     }
 
     public function getImages(): array
     {
         return $this->getAttrs('a.productView-thumbnail-link', 'data-image-gallery-new-image-url');
+    }
+
+    public function getDimX(): ?float
+    {
+        return $this->product_info['width'] ?? null;
+    }
+
+    public function getDimY(): ?float
+    {
+        return $this->product_info['height'] ?? null;
+    }
+
+
+    public function getDimZ(): ?float
+    {
+        return $this->product_info['depth'] ?? null;
     }
 
     public function getMpn(): string
@@ -223,34 +239,5 @@ class Parser extends HtmlParser
         }
 
         return false;
-    }
-
-    /**
-     * have different order of d-w-h
-     * @param array $description
-     * @param string $text
-     * @param string $reg_key
-     * @param int $x
-     * @param int $y
-     * @param int $z
-     * @throws \Exception
-     */
-    private function pushDimsToShortDesc(
-        array &$description,
-        string $text,
-        string $reg_key,
-        int $x,
-        int $y,
-        int $z
-    ): void {
-        if (!isset(self::DIMENSIONS_REGEXES[$reg_key])) {
-            throw new \Exception("$reg_key does not exist");
-        }
-
-        $dims = FeedHelper::getDimsRegexp($text, [self::DIMENSIONS_REGEXES[$reg_key]], $x, $y, $z);
-
-        $description[] = 'Width: ' . $dims['x'];
-        $description[] = 'Height: ' . $dims['y'];
-        $description[] = 'Depth: ' . $dims['z'];
     }
 }
