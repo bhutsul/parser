@@ -108,7 +108,7 @@ class Parser extends HtmlParser
                 });
         }
 
-        if ( isset($this->description) && $this->description->exists('table tr') ) {
+        if ( isset( $this->description ) && $this->description->exists('table tr' ) ) {
             $this->description->filter( 'table tr' )
                 ->each( function ( ParserCrawler $c ) use ( &$attributes ) {
                     $item = $c->filter( 'td' )->getNode( 0 );
