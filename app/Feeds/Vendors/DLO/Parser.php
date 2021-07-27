@@ -16,7 +16,7 @@ class Parser extends HtmlParser
         'DWH' => '/(\d+[\.]?\d*)"\(\d+[\.]?\d*\scm\)\s[a-zA-Z]\sx\s*(\d+[\.]?\d*)"\(\d+[\.]?\d*\scm\)\s[a-zA-Z]\sx\s*(\d+[\.]?\d*)"\(\d+[\.]?\d*\scm\)\s[a-zA-Z]/i',
         'HWD' => '/(\d+[\.]?\d*)"[a-zA-Z]\sx\s*(\d+[\.]?\d*)"[a-zA-Z]\sx\s*(\d+[\.]?\d*)"[a-zA-Z]/i',
         'HWD_DESC' => '/Dimensions: (\d+[\.]?\d*)"\sx\s*(\d+[\.]?\d*)"\sx\s*(\d+[\.]?\d*)"/i',
-        'WEIGHT' => '/(\d+[\.]?\d*)\slbs.\s\(\d+[\.]?\d*\skg\)/i',
+        'WEIGHT' => '/(\d+[\.]?\d*)\slbs[.\s]?[\(\d]?+[\.]?[\d*\skg\)]?/i',
         'WH' => '/(\d+[\/]?\d*)"\sx\s*(\d+[\/]?\d*)"/i',
         'WLD' => '/([\d+[\/]?\d*]?\s\d+[\/]?\d*)"\s[a-zA-Z]\sx\s*([\d+[\/]?\d*]?\s\d+[\/]?\d*)"\s[a-zA-Z]\sX\s*([\d+[\/]?\d*]?\s\d+[\/]?\d*)"\s[a-zA-Z]/i',
     ];
@@ -183,6 +183,12 @@ class Parser extends HtmlParser
                 if ( preg_match( self::DIMENSIONS_REGEXES['WEIGHT'], $li_value, $weight_values ) ) {
                     $this->product_info['weight'] = isset( $weight_values[0] ) ? StringHelper::getFloat( $weight_values[0] ) : null;
 
+                    unset( $this->product_info['short_description'][$key] );
+                }
+
+                $explode_value = explode(': ', $li_value);
+                if ( count( $explode_value ) === 2 && isset( $this->product_info['short_description'][$key] ) ) {
+                    $this->product_info['attributes'][$explode_value[0]] = $explode_value[1];
                     unset( $this->product_info['short_description'][$key] );
                 }
             }
