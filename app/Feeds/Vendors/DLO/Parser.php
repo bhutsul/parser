@@ -15,6 +15,7 @@ class Parser extends HtmlParser
         'DWH' => '/(\d+[\.]?\d*)"\(\d+[\.]?\d*\scm\)\s[a-zA-Z]\sx\s*(\d+[\.]?\d*)"\(\d+[\.]?\d*\scm\)\s[a-zA-Z]\sx\s*(\d+[\.]?\d*)"\(\d+[\.]?\d*\scm\)\s[a-zA-Z]/i',
         'HWD' => '/(\d+[\.]?\d*)"[a-zA-Z]\sx\s*(\d+[\.]?\d*)"[a-zA-Z]\sx\s*(\d+[\.]?\d*)"[a-zA-Z]/i',
         'HWD_DESC' => '/Dimensions: (\d+[\.]?\d*)"\sx\s*(\d+[\.]?\d*)"\sx\s*(\d+[\.]?\d*)"/i',
+        'WEIGHT' => '/(\d+[\.]?\d*)\slbs.\s\(\d+[\.]?\d*\skg\)/i',
     ];
 
     private array $product_info = [];
@@ -45,6 +46,11 @@ class Parser extends HtmlParser
                         }
                         else if (preg_match(self::DIMENSIONS_REGEXES['HWD'], $li_value)) {
                             $dims = FeedHelper::getDimsRegexp($li_value, [self::DIMENSIONS_REGEXES['HWD']], 2, 1, 3);
+                            unset($this->product_info['short_description'][$key]);
+                        }
+                        $weight_values = [];
+                        if (preg_match(self::DIMENSIONS_REGEXES['WEIGHT'], $li_value, $weight_values)) {
+                            $this->product_info['weight'] = $weight_values[0] ?? null;
                             unset($this->product_info['short_description'][$key]);
                         }
                     }
@@ -130,6 +136,13 @@ class Parser extends HtmlParser
         return $this->product_info['depth'] ?? null;
     }
 
+    public function getWeight(): ?float
+    {
+        return isset($this->product_info['weight'])
+            ? StringHelper::getFloat($this->product_info['weight'])
+            : null;
+    }
+
     public function getMpn(): string
     {
         return $this->product_info['sku'] ?? $this->getText('.sku-section span');
@@ -181,7 +194,7 @@ class Parser extends HtmlParser
                 $fi->setDimZ($variant['depth'] ?: $this->getDimZ());
                 $fi->setDimY($variant['height'] ?: $this->getDimY());
                 $fi->setDimX($variant['width'] ?: $this->getDimX());
-                $fi->setWeight($variant['weight']);
+                $fi->setWeight($variant['weight'] ?: $this->getWeight());
 
                 $child[] = $fi;
             }
