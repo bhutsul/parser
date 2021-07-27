@@ -8,7 +8,6 @@ use App\Feeds\Processor\SitemapHttpProcessor;
 class Vendor extends SitemapHttpProcessor
 {
     protected array $first = ['https://www.delasco.com/xmlsitemap.php'];
-    public array $custom_products = ['https://www.delasco.com/geiger-tcu-thermal-cautery-unit/', 'https://www.delasco.com/bd-locking-wall-bracket/', 'https://www.delasco.com/bovie-bantam-pro-a952-electrosurgical-generator/'];
 
     /**
      * product can be without image or sku
