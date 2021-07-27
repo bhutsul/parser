@@ -33,8 +33,8 @@ class Parser extends HtmlParser
                 $dims = FeedHelper::getDimsRegexp($this->product_info['description'], [self::DIMENSIONS_REGEXES['HWD_DESC']], 2, 1, 3);
             }
 
-            if ($this->exists( '#tab-description ul li')) {
-                $this->product_info['short_description'] = $this->getContent('#tab-description ul li');
+            if ($this->exists( '#tab-description li')) {
+                $this->product_info['short_description'] = $this->getContent('#tab-description li');
 
                 if (!isset($dims)) {
                     foreach ($this->product_info['short_description'] as $li_value) {
