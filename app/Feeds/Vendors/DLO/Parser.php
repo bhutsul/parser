@@ -27,32 +27,31 @@ class Parser extends HtmlParser
         }
 
         if ($this->exists( '#tab-description')) {
-            $big_desc = $this->getHtml( '#tab-description');
+            $this->product_info['description'] = $this->getHtml( '#tab-description');
 
-            if (preg_match(self::DIMENSIONS_REGEXES['HWD_DESC'], $big_desc)) {
-                $dims = FeedHelper::getDimsRegexp($big_desc, [self::DIMENSIONS_REGEXES['HWD_DESC']], 2, 1, 3);
+            if (preg_match(self::DIMENSIONS_REGEXES['HWD_DESC'], $this->product_info['description'])) {
+                $dims = FeedHelper::getDimsRegexp($this->product_info['description'], [self::DIMENSIONS_REGEXES['HWD_DESC']], 2, 1, 3);
+            }
 
+            if ($this->exists( '#tab-description ul li')) {
+                $this->product_info['short_description'] = $this->getContent('#tab-description ul li');
+
+                if (!isset($dims)) {
+                    foreach ($this->product_info['short_description'] as $li_value) {
+                        if (preg_match(self::DIMENSIONS_REGEXES['DWH'], $li_value)) {
+                            $dims = FeedHelper::getDimsRegexp($li_value, [self::DIMENSIONS_REGEXES['DWH']], 2, 3, 1);
+                        }
+                        else if (preg_match(self::DIMENSIONS_REGEXES['HWD'], $li_value)) {
+                            $dims = FeedHelper::getDimsRegexp($li_value, [self::DIMENSIONS_REGEXES['HWD']], 2, 1, 3);
+                        }
+                    }
+                }
+            }
+
+            if (isset($dims)) {
                 $this->product_info['depth']  = $dims['z'];
                 $this->product_info['height'] = $dims['y'];
                 $this->product_info['width']  = $dims['x'];
-            }
-            else if ($this->exists( '#tab-description ul li')) {
-                $li_values = $this->getContent('#tab-description ul li');
-
-                foreach ($li_values as $li_value) {
-                    if (preg_match(self::DIMENSIONS_REGEXES['DWH'], $li_value)) {
-                        $dims = FeedHelper::getDimsRegexp($li_value, [self::DIMENSIONS_REGEXES['DWH']], 2, 3, 1);
-                    }
-                    else if (preg_match(self::DIMENSIONS_REGEXES['HWD'], $li_value)) {
-                        $dims = FeedHelper::getDimsRegexp($li_value, [self::DIMENSIONS_REGEXES['HWD']], 2, 1, 3);
-                    }
-
-                    if (isset($dims)) {
-                        $this->product_info['depth']  = $dims['z'];
-                        $this->product_info['height'] = $dims['y'];
-                        $this->product_info['width']  = $dims['x'];
-                    }
-                }
             }
         }
     }
@@ -73,18 +72,14 @@ class Parser extends HtmlParser
 
     public function getDescription(): string
     {
-        $description = $this->getHtml( '#tab-description');
-
-        return preg_replace('/<ul\b[^>]*>(.*?)<\/ul>/i', '', $description);
+        return isset($this->product_info['description'])
+            ? preg_replace('/<ul\b[^>]*>(.*?)<\/ul>/i', '', $this->product_info['description'])
+            : '';
     }
 
     public function getShortDescription(): array
     {
-        if (!$this->exists( '#tab-description ul li')) {
-            return [];
-        }
-
-        return $this->getContent('#tab-description ul li' );
+        return $this->product_info['short_description'] ?? [];
     }
 
     public function getImages(): array
