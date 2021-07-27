@@ -14,7 +14,7 @@ class Parser extends HtmlParser
     public const DIMENSIONS_REGEXES = [
         'DWH' => '/(\d+[\.]?\d*)"\(\d+[\.]?\d*\scm\)\s[a-zA-Z]\sx\s*(\d+[\.]?\d*)"\(\d+[\.]?\d*\scm\)\s[a-zA-Z]\sx\s*(\d+[\.]?\d*)"\(\d+[\.]?\d*\scm\)\s[a-zA-Z]/i',
         'HWD' => '/(\d+[\.]?\d*)"[a-zA-Z]\sx\s*(\d+[\.]?\d*)"[a-zA-Z]\sx\s*(\d+[\.]?\d*)"[a-zA-Z]/i',
-        'HWD_DESC' => '/(\d+[\.]?\d*)"\sx\s*(\d+[\.]?\d*)"\sx\s*(\d+[\.]?\d*)/i',
+        'HWD_DESC' => '/Dimensions: (\d+[\.]?\d*)"\sx\s*(\d+[\.]?\d*)"\sx\s*(\d+[\.]?\d*)"/i',
     ];
 
     private array $product_info = [];
@@ -31,18 +31,21 @@ class Parser extends HtmlParser
 
             if (preg_match(self::DIMENSIONS_REGEXES['HWD_DESC'], $this->product_info['description'])) {
                 $dims = FeedHelper::getDimsRegexp($this->product_info['description'], [self::DIMENSIONS_REGEXES['HWD_DESC']], 2, 1, 3);
+                $this->replaceDescriptionDimensions();
             }
 
             if ($this->exists( '#tab-description li')) {
                 $this->product_info['short_description'] = $this->getContent('#tab-description li');
 
                 if (!isset($dims)) {
-                    foreach ($this->product_info['short_description'] as $li_value) {
+                    foreach ($this->product_info['short_description'] as $key => $li_value) {
                         if (preg_match(self::DIMENSIONS_REGEXES['DWH'], $li_value)) {
                             $dims = FeedHelper::getDimsRegexp($li_value, [self::DIMENSIONS_REGEXES['DWH']], 2, 3, 1);
+                            unset($this->product_info['short_description'][$key]);
                         }
                         else if (preg_match(self::DIMENSIONS_REGEXES['HWD'], $li_value)) {
                             $dims = FeedHelper::getDimsRegexp($li_value, [self::DIMENSIONS_REGEXES['HWD']], 2, 1, 3);
+                            unset($this->product_info['short_description'][$key]);
                         }
                     }
                 }
@@ -54,6 +57,26 @@ class Parser extends HtmlParser
                 $this->product_info['width']  = $dims['x'];
             }
         }
+
+        if ($this->exists('table.productView-table tr')) {
+            $this->filter('table.productView-table tr')
+                ->each(function (ParserCrawler $c) use (&$attributes) {
+                    $key   = $c->filter('td')->getNode(0)->textContent;
+                    $value = $c->filter('td')->getNode(1);
+                    $first_value_child = $value->firstChild;
+
+                    if ($first_value_child->nodeName === 'a') {
+                        $this->product_info['files'][] = [
+                            'name' => $key,
+                            'link' => $first_value_child->attributes['href']->value,
+                        ];
+                    }
+                    else {
+                        $this->product_info['attributes'][$key] = $value->textContent;
+                    }
+                });
+        }
+
     }
 
     public function isGroup(): bool
@@ -97,6 +120,10 @@ class Parser extends HtmlParser
         return $this->product_info['height'] ?? null;
     }
 
+    public function getProductFiles(): array
+    {
+        return $this->product_info['files'] ?? [];
+    }
 
     public function getDimZ(): ?float
     {
@@ -131,22 +158,7 @@ class Parser extends HtmlParser
 
     public function getAttributes(): ?array
     {
-        $attributes = [];
-
-        if ($this->exists('table.productView-table tr')) {
-            $this->filter('table.productView-table tr')
-                ->each(function (ParserCrawler $c) use (&$attributes) {
-                    $key   = $c->filter('td')->getNode(0)->textContent;
-                    $value = $c->filter('td')->getNode(1)->textContent;
-                    $attributes[$key] = $value;
-                });
-        }
-
-        if (!$attributes) {
-            return null;
-        }
-
-        return $attributes;
+        return $this->product_info['attributes'] ?? null;
     }
 
     public function getChildProducts( FeedItem $parent_fi ): array
@@ -166,9 +178,9 @@ class Parser extends HtmlParser
                 $fi->setImages($images);
                 $fi->setCostToUs(StringHelper::getMoney($variant['price']));
                 $fi->setRAvail($variant['inventory_level']);
-                $fi->setDimZ($variant['depth']);
-                $fi->setDimY($variant['height']);
-                $fi->setDimX($variant['width']);
+                $fi->setDimZ($variant['depth'] ?: $this->getDimZ());
+                $fi->setDimY($variant['height'] ?: $this->getDimY());
+                $fi->setDimX($variant['width'] ?: $this->getDimX());
                 $fi->setWeight($variant['weight']);
 
                 $child[] = $fi;
@@ -234,5 +246,17 @@ class Parser extends HtmlParser
         }
 
         return false;
+    }
+
+    /**
+     *dimensions in product desc
+     */
+    private function replaceDescriptionDimensions(): void
+    {
+        $this->product_info['description'] = preg_replace(
+            self::DIMENSIONS_REGEXES['HWD_DESC'],
+            '',
+            $this->product_info['description']
+        );
     }
 }
