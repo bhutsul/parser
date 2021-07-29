@@ -9,34 +9,20 @@ use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
 {
-    public const DIMENSIONS_REGEXES = [
-        'WDH' => '/(\d+[\.]?\d*)\sx\s*(\d+[\.]?\d*)\sx\s*(\d+[\.]?\d*)["]?/i',
-        'WH' => '/(\d+[\/]?\d*)[",\']?\sx\s*(\d+[\/]?\d*)[",\']?/i',
-    ];
+    public const DIMENSIONS_REGEX = '/(\d{1,3}+[[\S,\s]\d{1,3}+\/\d{1,3}]?)[\',"]?[[\s,\S]x[\s,\S]]?(\d{1,3}+[[\S,\s]\d{1,3}+\/\d{1,3}]?)[\',"]?[\s,\S]?[x]?[\s,\S]?(:?\d{1,3}+[[\S,\s]\d{1,3}+\/\d{1,3}]?)?[\',"]?/i';
 
     private array $product_info = [];
 
     /**
      *product dims pattern
+     * @param string $description
+     * @param int $x
+     * @param int $y
+     * @param int $z
      */
-    private function pushDimsToProduct(): void
+    private function pushDimsToProduct( string $description, int $x = 1, int $y = 2, int $z = 3 ): void
     {
-        if ( !isset( $this->product_info[ 'name' ] ) ) {
-            return;
-        }
-
-        if ( preg_match( self::DIMENSIONS_REGEXES['WDH'], $this->product_info[ 'name' ] ) ) {
-            $dims = ['desc' => $this->product_info[ 'name' ], 'regex' => [self::DIMENSIONS_REGEXES['WDH']], 'x' => 1, 'y' => 3, 'z' => 2];
-        }
-        else if ( preg_match( self::DIMENSIONS_REGEXES['WH'], $this->product_info[ 'name' ] ) ) {
-            $dims = ['desc' => $this->product_info[ 'name' ], 'regex' => [self::DIMENSIONS_REGEXES['WH']], 'x' => 1, 'y' => 2, 'z' => 3];
-        }
-
-        if ( !isset( $dims ) ) {
-            return;
-        }
-
-        $dims = FeedHelper::getDimsRegexp( $dims['desc'], $dims['regex'], $dims['x'], $dims['y'], $dims['z'] );
+        $dims = FeedHelper::getDimsRegexp( $description, [self::DIMENSIONS_REGEX], $x, $y, $z );
 
         $this->product_info['depth']  = $dims['z'];
         $this->product_info['height'] = $dims['y'];
@@ -57,25 +43,37 @@ class Parser extends HtmlParser
         $table_header  = $table->first();
         $next_elements = $table_header->nextAll();
         $prices_values = $next_elements->first();
-        $table_values  = $prices_values->nextAll()->filter( 'td.ChartCopyItemW10H18' );
+        $table_values  = $prices_values->nextAll();
 
-        $table_values->each( function ( ParserCrawler $c ) use ( &$attributes, $table_header, $table , $table_values) {
-            for ( $i = 1; $i <= $table_values->count(); $i++ ) {
+        $table_values->each( function ( ParserCrawler $c ) use ( &$attributes, $table_header, $table) {
+            for ( $i = 1; $i <= $table->count(); $i++ ) {
                 $key = $table_header->filter( 'td' )->getNode( $i );
                 $value = $c->filter( 'td' )->getNode( $i );
 
                 if ( isset( $key ) && isset( $value ) ) {
+                    if ( isset( $class_name ) && $value->attributes['className']->value != 'ChartCopyItemW10H18') {
+                        continue;
+                    }
                     if ( isset( $key->firstChild ) ) {
-                        //weight
-//                        if ( $key->firstChild->attributes['a']->value == 1585 ) {
-//                            $this->product_info['weight'] = $value->textContent;
-//
-//                            continue;
-//                        }
-//
-//                        if ( in_array( $key->firstChild->attributes['a']->value, [1582] ) ) {
-//                            continue;
-//                        }
+                        if ( preg_match( '/WT./i', $key->textContent)
+                            || preg_match( '/LBS.\/<br>ROLL/i', $key->textContent)
+                        ) {
+                            $this->product_info['weight'] = $value->textContent;
+
+                            continue;
+                        }
+
+                        if ( preg_match( '/L\sx\sW\sx\sH/i', $key->textContent ) ) {
+                            $this->pushDimsToProduct( $value->textContent, 2, 3, 1 );
+
+                            continue;
+                        }
+                        elseif ( preg_match( '/W\sx\sD\sx\sH/i', $key->textContent ) ) {
+                            $this->pushDimsToProduct( $value->textContent, 1, 3, 2 );
+
+                            continue;
+                        }
+
 
                         $this->product_info['attributes'][$key->textContent] = $value->textContent;
                     }
@@ -90,7 +88,7 @@ class Parser extends HtmlParser
             ->each( function ( ParserCrawler $c ) use ( &$attributes ) {
                 $item = $c->filter( 'a' )->getNode( 0 );
                 if ( isset( $item ) ) {
-                    $this->product_info['files'][] = [
+                    $this->product_info['files'][$item->attributes['href']->value] = [
                         'name' => $item->textContent,
                         'link' => $item->attributes['href']->value,
                     ];
@@ -106,7 +104,6 @@ class Parser extends HtmlParser
 
             $this->product_info = json_decode( $product_info, true, 512, JSON_THROW_ON_ERROR );
 
-            $this->pushDimsToProduct();
             $this->pushProductAttributeValues();
             $this->pushFiles();
         }
@@ -214,6 +211,6 @@ class Parser extends HtmlParser
 
     public function getProductFiles(): array
     {
-        return $this->product_info['files'] ?? [];
+        return isset($this->product_info['files']) ? array_values( $this->product_info['files'] ) : [];
     }
 }
