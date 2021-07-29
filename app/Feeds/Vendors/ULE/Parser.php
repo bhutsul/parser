@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Feeds\Vendors\ULI;
+namespace App\Feeds\Vendors\ULE;
 
 use App\Feeds\Parser\HtmlParser;
 use App\Feeds\Utils\ParserCrawler;
@@ -26,7 +26,7 @@ class Parser extends HtmlParser
         }
 
         if ( preg_match( self::DIMENSIONS_REGEXES['WDH'], $this->product_info[ 'name' ] ) ) {
-            $dims = ['desc' => $this->product_info[ 'name' ], 'regex' => [self::DIMENSIONS_REGEXES['DWH']], 'x' => 1, 'y' => 3, 'z' => 2];
+            $dims = ['desc' => $this->product_info[ 'name' ], 'regex' => [self::DIMENSIONS_REGEXES['WDH']], 'x' => 1, 'y' => 3, 'z' => 2];
         }
         else if ( preg_match( self::DIMENSIONS_REGEXES['WH'], $this->product_info[ 'name' ] ) ) {
             $dims = ['desc' => $this->product_info[ 'name' ], 'regex' => [self::DIMENSIONS_REGEXES['WH']], 'x' => 1, 'y' => 2, 'z' => 3];
@@ -48,32 +48,37 @@ class Parser extends HtmlParser
      */
     private function pushProductAttributeValues(): void
     {
-        if ( !$this->exists( 'table#tdChart' ) ) {
+        if ( !$this->exists( 'td#tdChart' ) ) {
             return;
         }
 
-        $table = $this->filter( 'table#tdChart tr' );
+        $table = $this->filter( 'td#tdChart table tr' );
 
         $table_header  = $table->first();
         $next_elements = $table_header->nextAll();
         $prices_values = $next_elements->first();
-        $table_values  = $prices_values->nextAll();
+        $table_values  = $prices_values->nextAll()->filter( 'td.ChartCopyItemW10H18' );
 
-        $table_values->each( function ( ParserCrawler $c ) use ( &$attributes, $table_header, $table ) {
-            // -- < -- because i ignore last el add to cart of table
-            for ( $i = 1; $i < $table->count(); $i++ ) {
+        $table_values->each( function ( ParserCrawler $c ) use ( &$attributes, $table_header, $table , $table_values) {
+            for ( $i = 1; $i <= $table_values->count(); $i++ ) {
                 $key = $table_header->filter( 'td' )->getNode( $i );
                 $value = $c->filter( 'td' )->getNode( $i );
 
                 if ( isset( $key ) && isset( $value ) ) {
-                    if ( stripos( $key->textContent, 'MODEL' )
-                        || stripos( $key->textContent, 'DIMENSIONS' )
-                        || stripos( $key->textContent, 'COLOR' )
-                        || stripos( $key->textContent, 'HEIGHT' )
-                    ) {
-                        continue;
+                    if ( isset( $key->firstChild ) ) {
+                        //weight
+//                        if ( $key->firstChild->attributes['a']->value == 1585 ) {
+//                            $this->product_info['weight'] = $value->textContent;
+//
+//                            continue;
+//                        }
+//
+//                        if ( in_array( $key->firstChild->attributes['a']->value, [1582] ) ) {
+//                            continue;
+//                        }
+
+                        $this->product_info['attributes'][$key->textContent] = $value->textContent;
                     }
-                    $this->product_info['attributes'][$key->textContent] = $value->textContent;
                 }
             }
         });
@@ -81,9 +86,9 @@ class Parser extends HtmlParser
 
     public function beforeParse(): void
     {
-        preg_match( '/application\/ld\+json">(.*)<\//', $this->node->html(), $matches );
-        if ( isset( $matches[ 1 ] ) ) {
-            $product_info = $matches[ 1 ];
+        preg_match( '/<script type="application\/ld\+json">\s*(\{.*?\})\s*<\/script>/s', $this->node->html(), $matches );
+        if ( isset( $matches[1] ) ) {
+            $product_info = $matches[1];
 
             $this->product_info = json_decode( $product_info, true, 512, JSON_THROW_ON_ERROR );
 
@@ -119,11 +124,11 @@ class Parser extends HtmlParser
 
     public function getCostToUs(): float
     {
-        if ( !isset( $this->product_info[ 'price' ] ) ) {
+        if ( !isset( $this->product_info['offers']['priceSpecification']['price'] ) ) {
             return 0;
         }
 
-        return StringHelper::getMoney( $this->product_info[ 'price' ] );
+        return StringHelper::getMoney( $this->product_info['offers']['priceSpecification'][ 'price' ] );
     }
 
     public function getMpn(): string
@@ -133,11 +138,11 @@ class Parser extends HtmlParser
 
     public function getAvail(): ?int
     {
-        if ( !isset( $this->product_info[ 'availability' ] ) ) {
+        if ( !isset( $this->product_info['offers']['availability'] ) ) {
             return 0;
         }
 
-        return in_array( $this->product_info[ 'availability' ], [
+        return in_array( $this->product_info['offers']['availability'], [
             'https://schema.org/InStock',
             'http://schema.org/InStock',
             'InStock'
@@ -157,5 +162,38 @@ class Parser extends HtmlParser
     public function getDimZ(): ?float
     {
         return $this->product_info['depth'] ?? null;
+    }
+
+    public function getWeight(): ?float
+    {
+        return isset( $this->product_info['weight'] )
+            ? StringHelper::getFloat( $this->product_info['weight'] )
+            : null;
+    }
+
+    public function getImages(): array
+    {
+        if ( !isset( $this->product_info[ 'sku' ] ) ) {
+            return [];
+        }
+
+        $url = 'https://www.uline.com/api/ImagePopUp';
+        $params['number'] = $this->product_info[ 'sku' ];
+
+        $data = $this->getVendor()->getDownloader()->get($url, $params);
+
+        $data = json_decode( $data, true, 512, JSON_THROW_ON_ERROR );
+
+        return array_map( static fn( $image ) => $image['ZoomImageURL'], $data['Images'] );
+    }
+
+    public function getAttributes(): ?array
+    {
+        return $this->product_info['attributes'] ?? null;
+    }
+
+    public function getCategories(): array
+    {
+        return array_values( array_slice( $this->getContent( 'ul#breadCrumbs li a' ), 2, -1 ) );
     }
 }
