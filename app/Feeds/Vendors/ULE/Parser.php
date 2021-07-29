@@ -84,6 +84,20 @@ class Parser extends HtmlParser
         });
     }
 
+    private function pushFiles()
+    {
+        $this->filter( '.Instructions' )
+            ->each( function ( ParserCrawler $c ) use ( &$attributes ) {
+                $item = $c->filter( 'a' )->getNode( 0 );
+                if ( isset( $item ) ) {
+                    $this->product_info['files'][] = [
+                        'name' => $item->textContent,
+                        'link' => $item->attributes['href']->value,
+                    ];
+                }
+            });
+    }
+
     public function beforeParse(): void
     {
         preg_match( '/<script type="application\/ld\+json">\s*(\{.*?\})\s*<\/script>/s', $this->node->html(), $matches );
@@ -94,6 +108,7 @@ class Parser extends HtmlParser
 
             $this->pushDimsToProduct();
             $this->pushProductAttributeValues();
+            $this->pushFiles();
         }
     }
 
@@ -195,5 +210,10 @@ class Parser extends HtmlParser
     public function getCategories(): array
     {
         return array_values( array_slice( $this->getContent( 'ul#breadCrumbs li a' ), 2, -1 ) );
+    }
+
+    public function getProductFiles(): array
+    {
+        return $this->product_info['files'] ?? [];
     }
 }
