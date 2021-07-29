@@ -9,7 +9,7 @@ use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
 {
-    public const DIMENSIONS_REGEX = '/(\d{1,3}+[[\S,\s]\d{1,3}+\/\d{1,3}]?)[\',"]?[[\s,\S]x[\s,\S]]?(\d{1,3}+[[\S,\s]\d{1,3}+\/\d{1,3}]?)[\',"]?[\s,\S]?[x]?[\s,\S]?(:?\d{1,3}+[[\S,\s]\d{1,3}+\/\d{1,3}]?)?[\',"]?/i';
+    public const DIMENSIONS_REGEX = '/(\d{1,3}+(?:[\S,\s]\d{1,3}+\/\d{1,3})?)[\',"]?[[\s,\S]x[\s,\S]]?(\d{1,3}+(?:[\S,\s]\d{1,3}+\/\d{1,3})?)[\',"]?[\s,\S]?[x]?[\s,\S]?(:?\d{1,3}+(?:[\S,\s]\d{1,3}+\/\d{1,3})?)?[\',"]?/i';
 
     private array $product_info = [];
 
