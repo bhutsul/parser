@@ -142,14 +142,14 @@ class Parser extends HtmlParser
                 break;
             }
             else {
-                $this->node = new ParserCrawler ($this->getVendor()->getDownloader()->get( $this->getUri() )->getData() );
+                $this->node = new ParserCrawler( $this->getVendor()->getDownloader()->get( $this->getUri() )->getData() );
             }
         }
     }
 
     public function getProduct(): string
     {
-        return $this->product_info[ 'name' ] ?? '';
+        return html_entity_decode($this->product_info[ 'name' ] ?? '');
     }
 
     public function getShortDescription(): array
