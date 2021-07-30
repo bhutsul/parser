@@ -149,7 +149,7 @@ class Parser extends HtmlParser
 
     public function getProduct(): string
     {
-        return html_entity_decode($this->product_info[ 'name' ] ?? '');
+        return html_entity_decode( $this->product_info[ 'name' ] ?? '' );
     }
 
     public function getShortDescription(): array
@@ -230,7 +230,7 @@ class Parser extends HtmlParser
         $url = 'https://www.uline.com/api/ImagePopUp';
         $params['number'] = $this->product_info[ 'sku' ];
 
-        $data = $this->getVendor()->getDownloader()->get($url, $params);
+        $data = $this->getVendor()->getDownloader()->get( $url, $params );
 
         $data = json_decode( $data, true, 512, JSON_THROW_ON_ERROR );
 
