@@ -22,7 +22,7 @@ class Parser extends HtmlParser
      */
     private function pushDimsToProduct( string $description, int $x = 1, int $y = 2, int $z = 3 ): void
     {
-        $description = preg_replace( ['/&nbsp;/', '/ /'], ' ', $description );;
+        $description = preg_replace( ['/&nbsp;/', '/ /'], ' ', $description );
         $dims = FeedHelper::getDimsRegexp( $description, [self::DIMENSIONS_REGEX], $x, $y, $z );
 
         $this->product_info['depth']  = $dims['z'];
@@ -43,8 +43,14 @@ class Parser extends HtmlParser
 
         $table_header  = $table->first();
         $next_elements = $table_header->nextAll();
-        $prices_values = $next_elements->first();
-        $table_values  = $prices_values->nextAll();
+
+        if ( $next_elements->exists( ' td.ChartHeadLargeItemW10H18 ' ) ) {
+            $prices_values = $next_elements->first();
+            $table_values  = $prices_values->nextAll();
+        }
+        else {
+            $table_values  = $next_elements;
+        }
 
         $table_values->each( function ( ParserCrawler $c ) use ( &$attributes, $table_header, $table) {
             for ( $i = 1; $i <= $table->count(); $i++ ) {
