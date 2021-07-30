@@ -106,6 +106,26 @@ class Parser extends HtmlParser
                             continue;
                         }
 
+                        if ( preg_match( '/HEIGHT/i', $key->textContent ) ) {
+                            $this->product_info['height'] = StringHelper::getFloat( $value->textContent );
+
+                            continue;
+                        }
+
+                        if ( preg_match( '/WIDTH/i', $key->textContent ) ) {
+                            $this->product_info['width'] = StringHelper::getFloat( $value->textContent );
+
+                            continue;
+                        }
+
+                        if ( preg_match( '/LENGTH/i', $key->textContent )
+                            || preg_match( '/DEPTH/i', $key->textContent )
+                        ) {
+                            $this->product_info['depth'] = StringHelper::getFloat( $value->textContent );
+
+                            continue;
+                        }
+
 
                         $this->product_info['attributes'][$key->textContent] = $value->textContent;
                     }
@@ -122,7 +142,7 @@ class Parser extends HtmlParser
                 if ( isset( $item ) ) {
                     $this->product_info['files'][$item->attributes['href']->value] = [
                         'name' => $item->textContent,
-                        'link' => $item->attributes['href']->value,
+                        'link' => 'https://www.uline.com/' . $item->attributes['href']->value,
                     ];
                 }
             });
@@ -162,6 +182,15 @@ class Parser extends HtmlParser
 
         if (!$shorts) {
             return [];
+        }
+
+        foreach ( $shorts as $key => $value ) {
+            if ( preg_match( '/\$\d{1,10}/i', $value )
+                || preg_match( '/sale code/i', $value )
+                || preg_match( '/checkout/i', $value )
+            ) {
+                unset( $shorts[$key] );
+            }
         }
 
         return $shorts;
@@ -216,9 +245,16 @@ class Parser extends HtmlParser
 
     public function getWeight(): ?float
     {
-        return isset( $this->product_info['weight'] )
-            ? StringHelper::getFloat( $this->product_info['weight'] )
-            : null;
+        if ( !isset( $this->product_info['weight'] ) ) {
+            if ( $this->exists( '#dvAdditionalInfo .otherLinksContainer .UnitWeight' ) ) {
+                $this->product_info['weight'] = $this->getText( '#dvAdditionalInfo .otherLinksContainer .UnitWeight' );
+            }
+            else {
+                return null;
+            }
+        }
+
+        return StringHelper::getFloat( $this->product_info['weight'] );
     }
 
     public function getImages(): array
