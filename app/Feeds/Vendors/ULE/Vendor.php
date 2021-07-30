@@ -16,7 +16,7 @@ class Vendor extends SitemapHttpProcessor
         'Connection' => 'keep-alive',
         'Accept' => '*/*',
     ];
-    
+
 
     public function getProductsLinks( Data $data, string $url ): array
     {

@@ -142,7 +142,7 @@ class Parser extends HtmlParser
                 if ( isset( $item ) ) {
                     $this->product_info['files'][$item->attributes['href']->value] = [
                         'name' => $item->textContent,
-                        'link' => 'https://www.uline.com/' . $item->attributes['href']->value,
+                        'link' => 'https://www.uline.com' . $item->attributes['href']->value,
                     ];
                 }
             });
