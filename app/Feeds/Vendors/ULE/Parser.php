@@ -9,7 +9,7 @@ use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
 {
-    public const DIMENSIONS_REGEX = '/(\d{1,3}+(?:[\S,\s]\d{1,3}+\/\d{1,3})?)[\',"]?[[\s,\S]x[\s,\S]]?(\d{1,3}+(?:[\S,\s]\d{1,3}+\/\d{1,3})?)[\',"]?[\s,\S]?[x]?[\s,\S]?(:?\d{1,3}+(?:[\S,\s]\d{1,3}+\/\d{1,3})?)?[\',"]?/i';
+    public const DIMENSIONS_REGEX = '/(\d{1,3}+(?:[\S,\s]\d{1,3}+\/\d{1,3})?)[\',"]?[\S,\s]x[\S,\s](\d{1,3}+(?:[\S,\s]\d{1,3}+\/\d{1,3})?)[\',"]?[\S,\s]?[x]?[\S,\s]?(:?\d{1,3}+(?:[\S,\s]\d{1,3}+\/\d{1,3})?)?[\',"]?/i';
 
     private array $product_info = [];
 
@@ -22,6 +22,7 @@ class Parser extends HtmlParser
      */
     private function pushDimsToProduct( string $description, int $x = 1, int $y = 2, int $z = 3 ): void
     {
+        $description = preg_replace( ['/&nbsp;/', '/ /'], ' ', $description );;
         $dims = FeedHelper::getDimsRegexp( $description, [self::DIMENSIONS_REGEX], $x, $y, $z );
 
         $this->product_info['depth']  = $dims['z'];
@@ -54,6 +55,7 @@ class Parser extends HtmlParser
                     if ( isset( $class_name ) && $value->attributes['className']->value != 'ChartCopyItemW10H18') {
                         continue;
                     }
+
                     if ( isset( $key->firstChild ) ) {
                         if ( preg_match( '/WT./i', $key->textContent)
                             || preg_match( '/LBS.\/<br>ROLL/i', $key->textContent)
@@ -70,6 +72,28 @@ class Parser extends HtmlParser
                         }
                         elseif ( preg_match( '/W\sx\sD\sx\sH/i', $key->textContent ) ) {
                             $this->pushDimsToProduct( $value->textContent, 1, 3, 2 );
+
+                            continue;
+                        }
+                        elseif ( preg_match( '/L\sx\sW/i', $key->textContent ) ) {
+                            $this->pushDimsToProduct( $value->textContent, 2, 3, 1 );
+
+                            continue;
+                        }
+                        elseif ( preg_match( '/W\sx\sL/i', $key->textContent ) ) {
+                            $this->pushDimsToProduct( $value->textContent, 1, 3, 2 );
+
+                            continue;
+                        }
+                        elseif ( preg_match( '/W\sx\sH/i', $key->textContent )
+                                || preg_match( '/DIMENSIONS/i', $key->textContent )
+                        ) {
+                            $this->pushDimsToProduct( $value->textContent );
+
+                            continue;
+                        }
+                        elseif ( preg_match( '/H\sx\sW/i', $key->textContent ) ) {
+                            $this->pushDimsToProduct( $value->textContent, 2, 1 );
 
                             continue;
                         }
