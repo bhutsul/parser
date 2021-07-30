@@ -58,7 +58,9 @@ class Parser extends HtmlParser
                 $value = $c->filter( 'td' )->getNode( $i );
 
                 if ( isset( $key ) && isset( $value ) ) {
-                    if ( isset( $class_name ) && $value->attributes['className']->value != 'ChartCopyItemW10H18') {
+                    if ( isset( $value->attributes['className'] )
+                        && $value->attributes['className']->value != 'ChartCopyItemW10H18'
+                    ) {
                         continue;
                     }
 
