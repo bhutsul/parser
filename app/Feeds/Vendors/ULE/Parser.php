@@ -130,14 +130,20 @@ class Parser extends HtmlParser
 
     public function beforeParse(): void
     {
-        preg_match( '/<script type="application\/ld\+json">\s*(\{.*?\})\s*<\/script>/s', $this->node->html(), $matches );
-        if ( isset( $matches[1] ) ) {
-            $product_info = $matches[1];
+        for ( $i = 0; $i <= 20; $i ++ ) {
+            preg_match( '/<script type="application\/ld\+json">\s*(\{.*?\})\s*<\/script>/s', $this->node->html(), $matches );
+            if ( isset( $matches[1] ) ) {
+                $product_info = $matches[1];
 
-            $this->product_info = json_decode( $product_info, true, 512, JSON_THROW_ON_ERROR );
+                $this->product_info = json_decode( $product_info, true, 512, JSON_THROW_ON_ERROR );
 
-            $this->pushProductAttributeValues();
-            $this->pushFiles();
+                $this->pushProductAttributeValues();
+                $this->pushFiles();
+                break;
+            }
+            else {
+                $this->node = new ParserCrawler ($this->getVendor()->getDownloader()->get( $this->getUri() )->getData() );
+            }
         }
     }
 
