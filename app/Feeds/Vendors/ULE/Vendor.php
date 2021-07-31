@@ -17,13 +17,6 @@ class Vendor extends SitemapHttpProcessor
         'Accept' => '*/*',
     ];
 
-    public array $custom_products = [
-        'https://www.uline.com/Product/Detail/S-12261/White-Block-Poly-Bags/1-1-2-x-2-2-Mil-White-Block-Reclosable-Bags',
-        'https://www.uline.com/Product/Detail/H-1188/Carton-Stands/Steel-Carton-Stand-51-x-18-x-58-3-4',
-        'https://www.uline.com/Product/Detail/H-1172/Toilet-Paper-and-Dispensers/Double-Roll-Toilet-Tissue-Dispenser',
-        'https://www.uline.com/Product/Detail/H-1168X/Back-Support-Belts/Uline-Economy-Back-Support-Belt-with-Suspender-XL',
-    ];
-
     public function getProductsLinks( Data $data, string $url ): array
     {
         for ( $i = 0; $i <= 20; $i ++ ) {
