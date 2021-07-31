@@ -11,10 +11,10 @@ class Parser extends ShopifyParser
     protected function getRegex( string $description ): array
     {
         if ( preg_match( '/(\d+[\.]?\d*)[\',"]?\sround/i', $description ) ) {
-            return [ 'x', '(\d+[\.]?\d*)[\',"]' ];
+            return [ 'x', '/(\d+[\.]?\d*)[\',"]/i' ];
         }
 
-        return [ 'y', '\d+[\.]?\d*)[\',"]\sx\s(\d+[\.]?\d*)[\',"]?' ];
+        return [ 'y', '/(\d+[\.]?\d*)[\',"]\sx\s(\d+[\.]?\d*)[\',"]?/i' ];
     }
 
     public function beforeParse(): void
