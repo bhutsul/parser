@@ -57,7 +57,7 @@ class Parser extends HtmlParser
                 $key = $table_header->filter( 'td' )->getNode( $i );
                 $value = $c->filter( 'td' )->getNode( $i );
 
-                if ( isset( $key ) && isset( $value ) ) {
+                if ( isset( $key , $value ) ) {
                     if ( isset( $value->attributes['className'] )
                         && $value->attributes['className']->value != 'ChartCopyItemW10H18'
                     ) {
@@ -78,23 +78,23 @@ class Parser extends HtmlParser
 
                             continue;
                         }
-                        elseif ( preg_match( '/W\sx\sD\sx\sH/i', $key->textContent ) ) {
+                        if ( preg_match( '/W\sx\sD\sx\sH/i', $key->textContent ) ) {
                             $this->pushDimsToProduct( $value->textContent, 1, 3, 2 );
 
                             continue;
                         }
-                        elseif ( preg_match( '/L\sx\sW/i', $key->textContent ) ) {
+                        if ( preg_match( '/L\sx\sW/i', $key->textContent ) ) {
                             $this->pushDimsToProduct( $value->textContent, 2, 3, 1 );
 
                             continue;
                         }
-                        elseif ( preg_match( '/W\sx\sL/i', $key->textContent ) ) {
+                        if ( preg_match( '/W\sx\sL/i', $key->textContent ) ) {
                             $this->pushDimsToProduct( $value->textContent, 1, 3, 2 );
 
                             continue;
                         }
-                        elseif ( preg_match( '/W\sx\sH/i', $key->textContent )
-                                || preg_match( '/DIMENSIONS/i', $key->textContent )
+                        if ( preg_match( '/W\sx\sH/i', $key->textContent )
+                            || preg_match( '/DIMENSIONS/i', $key->textContent )
                         ) {
                             $this->pushDimsToProduct( $value->textContent );
 
@@ -106,20 +106,20 @@ class Parser extends HtmlParser
                             continue;
                         }
 
-                        if ( preg_match( '/HEIGHT/i', $key->textContent ) ) {
+                        if ( stripos( $key->textContent, 'HEIGHT' ) !== false ) {
                             $this->product_info['height'] = StringHelper::getFloat( $value->textContent );
 
                             continue;
                         }
 
-                        if ( preg_match( '/WIDTH/i', $key->textContent ) ) {
+                        if ( stripos( $key->textContent, 'WIDTH' ) !== false ) {
                             $this->product_info['width'] = StringHelper::getFloat( $value->textContent );
 
                             continue;
                         }
 
-                        if ( preg_match( '/LENGTH/i', $key->textContent )
-                            || preg_match( '/DEPTH/i', $key->textContent )
+                        if ( stripos( $key->textContent, 'LENGTH' ) !== false
+                            || stripos( $key->textContent,'DEPTH' ) !== false
                         ) {
                             $this->product_info['depth'] = StringHelper::getFloat( $value->textContent );
 
@@ -187,7 +187,8 @@ class Parser extends HtmlParser
         foreach ( $shorts as $key => $value ) {
             if ( preg_match( '/\$\d{1,10}/i', $value )
                 || preg_match( '/sale code/i', $value )
-                || preg_match( '/checkout/i', $value )
+                || stripos( $value, 'checkout' ) !== false
+                || stripos( $value, 'ULINE offers over' ) !== false
             ) {
                 unset( $shorts[$key] );
             }

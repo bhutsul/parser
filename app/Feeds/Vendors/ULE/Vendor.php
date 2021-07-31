@@ -17,18 +17,34 @@ class Vendor extends SitemapHttpProcessor
         'Accept' => '*/*',
     ];
 
+    public array $custom_products = [
+        'https://www.uline.com/Product/Detail/S-12261/White-Block-Poly-Bags/1-1-2-x-2-2-Mil-White-Block-Reclosable-Bags',
+        'https://www.uline.com/Product/Detail/H-1188/Carton-Stands/Steel-Carton-Stand-51-x-18-x-58-3-4',
+        'https://www.uline.com/Product/Detail/H-1172/Toilet-Paper-and-Dispensers/Double-Roll-Toilet-Tissue-Dispenser',
+        'https://www.uline.com/Product/Detail/H-1168X/Back-Support-Belts/Uline-Economy-Back-Support-Belt-with-Suspender-XL',
+    ];
 
     public function getProductsLinks( Data $data, string $url ): array
     {
-        $content = $this->getDownloader()->get( $url );
-        $file_name = preg_replace( '/(.*\/)/', '', $url );
-        Storage::disk( 'temp' )->put( $file_name, $content );
-        $gz_file = gzopen( Storage::path( 'temp' ) . '\\' . $file_name, 'r');
-        $xml = gzread( $gz_file, 100000000 );
-        gzclose( $gz_file );
-        Storage::disk( 'temp' )->delete( $file_name );
+        for ( $i = 0; $i <= 20; $i ++ ) {
+            $content = $this->getDownloader()->get( $url );
 
-        $data = new Data( $xml );
+            if ( stripos( $content, '<!DOCTYPE ' ) === false ) {
+                $file_name = preg_replace( '/(.*\/)/', '', $url );
+
+                Storage::disk( 'temp' )->put( $file_name, $content );
+
+                $gz_file = gzopen( Storage::path( 'temp' ) . '\\' . $file_name, 'r');
+                $xml = gzread( $gz_file, 100000000 );
+                gzclose( $gz_file );
+
+                Storage::disk( 'temp' )->delete( $file_name );
+
+                $data = new Data( $xml );
+
+                break;
+            }
+        }
         return parent::getProductsLinks($data, $url);
     }
 
