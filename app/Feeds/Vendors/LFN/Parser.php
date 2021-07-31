@@ -14,7 +14,7 @@ class Parser extends ShopifyParser
             return [ 'x', '/(\d+[\.]?\d*)[\',"]/i' ];
         }
 
-        return [ 'y', '/(\d+[\.]?\d*)[\',"]\sx\s(\d+[\.]?\d*)[\',"]?/i' ];
+        return [ 'y', '/(\d+[\.]?\d*)[\',"]?[\s]?x[\s]?(\d+[\.]?\d*)[\',"]?/i' ];
     }
 
     public function beforeParse(): void
