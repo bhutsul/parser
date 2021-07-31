@@ -8,11 +8,13 @@ use App\Helpers\FeedHelper;
 
 class Parser extends ShopifyParser
 {
-    public const DIMENSIONS_REGEX = '/(\d{1,3})[\',"]?[\sx\s]?(?:\d{1,3})[\',"]?/i';
-
-    protected function checkIfRound( string $description ): bool|int
+    protected function getRegex( string $description ): array
     {
-        return preg_match( '/(\d{1,3}[\.]?\d*)[\',"]?\sround/i', $description );
+        if ( preg_match( '/(\d+[\.]?\d*)[\',"]?\sround/i', $description ) ) {
+            return [ 'x', '(\d+[\.]?\d*)[\',"]' ];
+        }
+
+        return [ 'y', '\d+[\.]?\d*)[\',"]\sx\s(\d+[\.]?\d*)[\',"]?' ];
     }
 
     public function beforeParse(): void
@@ -21,10 +23,12 @@ class Parser extends ShopifyParser
             $this->meta[ 'title' ] = preg_replace('/&qout;/', '', $this->meta[ 'title' ] );
 //            $this->meta[ 'title' ] = html_entity_decode( $this->meta[ 'title' ] );
 
-            $dims = FeedHelper::getDimsRegexp( $this->meta[ 'title' ], [self::DIMENSIONS_REGEX] );
+            [ $key, $regex ] = $this->getRegex( $this->meta[ 'title' ] );
+
+            $dims = FeedHelper::getDimsRegexp( $this->meta[ 'title' ], [$regex] );
 
             $this->meta[ 'width' ]  = $dims[ 'x' ];
-            $this->meta[ 'height' ] = $this->checkIfRound( $this->meta[ 'title' ] ) ? $dims[ 'x' ] : $dims[ 'y' ];
+            $this->meta[ 'height' ] = $dims[ $key ];
         }
     }
 
@@ -42,9 +46,12 @@ class Parser extends ShopifyParser
     {
         return array_map( function (FeedItem $item ) {
             $description = $item->getProduct();
-            $dims = FeedHelper::getDimsRegexp( $description, [self::DIMENSIONS_REGEX] );
 
-            $item->setDimY( $this->checkIfRound( $description ) ? $dims[ 'x' ] : $dims[ 'y' ] );
+            [ $key, $regex ] = $this->getRegex( $description );
+
+            $dims = FeedHelper::getDimsRegexp( $description, [ $regex ] );
+
+            $item->setDimY( $dims[ $key ] );
             $item->setDimX( $dims[ 'x' ] );
 
             return $item;
