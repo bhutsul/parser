@@ -11,7 +11,7 @@ class Parser extends ShopifyParser
     protected function getRegex( string $description ): array
     {
         if ( preg_match( '/(\d+[\.]?\d*)[\',"]?\sround/i', $description ) ) {
-            return [ 'x', '/(\d+[\.]?\d*)[\',"]/i' ];
+            return [ 'x', '/(\d+[\.]?\d*)[\',"]?/i' ];
         }
 
         return [ 'y', '/(\d+[\.]?\d*)[\',"]?[\s]?x[\s]?(\d+[\.]?\d*)[\',"]?/i' ];
