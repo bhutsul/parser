@@ -14,3 +14,7 @@
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/d', function () {
+    return \Illuminate\Support\Facades\Artisan::call('feed OLH');
+});
