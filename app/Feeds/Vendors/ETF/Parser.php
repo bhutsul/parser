@@ -182,7 +182,7 @@ class Parser extends HtmlParser
                     $fi->setCostToUs( $price );
                     $fi->setRAvail( $this->getAvail() );
                     $fi->setCategories( $this->getCategories() );
-                    $fi->setMpn( $this->getMpn() . '_' . $c->attr( 'value' ) );
+                    $fi->setMpn( $this->getMpn() . '-' . $c->attr( 'value' ) );
                     $fi->setVideos( $this->getVideos() );
 
                     $child[] = $fi;
