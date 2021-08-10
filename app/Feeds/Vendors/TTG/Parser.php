@@ -111,14 +111,21 @@ class Parser extends HtmlParser
 
         foreach ( $this->variation_data as $variation ) {
             if ( isset( $variation['options'] ) ) {
+                $combination = '';
+                foreach ( $variation['options'] as $key => $option ) {
+                    $combination .= $option['choices'];
+
+                    if ( $key !== array_key_last( $variation['options'] ) ) {
+                        $combination .= '-';
+                    }
+                }
                 $fi = clone $parent_fi;
 
-                $option = $variation['options'][array_key_first( $variation['options'] )];
-
-                $fi->setProduct( $option['choices'] );
-                $fi->setCostToUs( StringHelper::getMoney( $option['sale_price'] ?? $option['price'] ?? 0 ) );
-                $fi->setRAvail( $option['inventory'] ?? 0 );
-                $fi->setMpn( $this->getMpn() . '-' . $option['choices'] );
+                $fi->setProduct( $combination );
+                $fi->setCostToUs( StringHelper::getMoney( $variation['sale_price'] ?? $variation['price'] ?? 0 ) );
+                $fi->setListPrice( isset( $variation['sale_price'], $variation['price'] ) ? $variation['price'] : null );
+                $fi->setRAvail( $variation['inventory'] ?? 0 );
+                $fi->setMpn( $combination . '-' . $variation['site_product_sku_id'] );
 
                 $child[] = $fi;
             }
