@@ -83,7 +83,7 @@ class Parser extends HtmlParser
 
     public function getCostToUs(): float
     {
-        return StringHelper::getMoney( $this->product_data['sale_price'] ?? $this->product_data['price'] );
+        return StringHelper::getMoney( $this->product_data['sale_price'] ?? $this->product_data['price'] ?? 0);
     }
 
     public function getListPrice(): ?float
