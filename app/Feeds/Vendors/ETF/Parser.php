@@ -13,16 +13,16 @@ class Parser extends HtmlParser
 {
     private array $attributes = [];
     private array $dims = [];
-    private int|string $weight;
+    private null|float $weight;
 
     public const DIMENSIONS_REGEX = '/(\d+[\.]?\d*+(?:\s\d{1,3}+\/\d{1,3})?)[\',"]?[\s]?[A-Z]?[\s]?x\s(\d+[\.]?\d*+(?:\s\d{1,3}+\/\d{1,3})?)[\',"]?[\s]?[A-Z]?[\s]?x\s(\d+[\.]?\d*+(?:\s\d{1,3}+\/\d{1,3})?)[\',"]?[\s]?[A-Z]?/i';
     public const WEIGHT_REGEX = '/(\d+[\.]?\d*)[\s]?[[a-zA-Z]{2,2}[\.]?[\s]?]?(:?\d[\.]?\d*)?[\s]?[a-zA-Z]?[{2,2}]?[\.]?/i';
 
     private function pushWeight( string $description ): void
     {
-        if ( preg_match( self::WEIGHT_REGEX, $description, $matches )) {
+        if ( preg_match( self::WEIGHT_REGEX, $description, $matches ) ) {
             if ( isset( $matches[2] ) ) {
-                $this->weight = StringHelper::getFloat( $matches[1] ) + FeedHelper::convertLbsFromOz( StringHelper::getFloat( $matches[2] ) );
+                $this->weight = FeedHelper::convertLbsFromOz( StringHelper::getFloat( $matches[2] ) ) + StringHelper::getFloat( $matches[1] );
             }
             else if ( isset( $matches[1] ) ) {
                 $this->weight = FeedHelper::convertLbsFromOz( StringHelper::getFloat( $matches[1] ) );
@@ -30,9 +30,9 @@ class Parser extends HtmlParser
         }
     }
 
-    private function pushParametersFromAttributes( ParserCrawler $li ): void
+    private function pushParametersFromAttributes( ParserCrawler $c ): void
     {
-        $attributes = explode(':', $li->text() );
+        $attributes = explode(':', $c->text() );
 
         if ( !$attributes || 2 !== count( $attributes )) {
             return;
@@ -40,37 +40,30 @@ class Parser extends HtmlParser
 
         [$key, $value] = $attributes;
 
-        if ( isset( $key, $value ) ) {
-            $value = trim( $value );
+        $value = trim( $value );
 
-            if (
-                false !== stripos( $key, 'dimensions' )
-                && false === stripos( $key, 'glasses open' )
-                && false === stripos( $key, 'glasses closed' )
-            ) {
-                $this->dims = FeedHelper::getDimsRegexp(
-                    str_replace('”', "", $value ),
-                    [self::DIMENSIONS_REGEX],
-                    2
-                    , 1
-                );
-            }
-            else if ( false !== stripos( $key, 'weight' ) ) {
-                $this->pushWeight( $value );
-            }
-            else {
-                $this->attributes[$key] = $value;
-            }
+        if (
+            false !== stripos( $key, 'dimensions' )
+            && false === stripos( $key, 'glasses open' )
+            && false === stripos( $key, 'glasses closed' )
+        ) {
+            $this->dims = FeedHelper::getDimsRegexp(
+                str_replace('”', "", $value ),
+                [self::DIMENSIONS_REGEX],
+                2,
+                1
+            );
+        }
+        else if ( false !== stripos( $key, 'weight' ) ) {
+            $this->pushWeight( $value );
+        }
+        else {
+            $this->attributes[$key] = $value;
         }
     }
 
     public function beforeParse(): void
     {
-        $this->filter( 'li#container_2 ul li p' )
-            ->each( function ( ParserCrawler $c ) {
-                $this->attributes[$c->getText( 'strong' )] = $c->text();
-            });
-
         if ( $this->exists( 'li#container_2 ul ul' ) ) {
             $this->filter( 'li#container_2 ul ul li' )
                 ->each( function ( ParserCrawler $c_li ) {
@@ -92,10 +85,10 @@ class Parser extends HtmlParser
         }
     }
 
-//    public function isGroup(): bool
-//    {
-//        return $this->exists('dl.last');
-//    }
+    public function isGroup(): bool
+    {
+        return $this->exists( '[name*="options"]' );
+    }
 
     public function getProduct(): string
     {
@@ -109,7 +102,7 @@ class Parser extends HtmlParser
 
     public function getShortDescription(): array
     {
-        return explode('.', $this->getText( 'div.short-description div.std' ));
+        return $this->getContent( 'li#container_2 ul li p' );
     }
 
     public function getImages(): array
@@ -166,23 +159,28 @@ class Parser extends HtmlParser
         return array_values( array_slice( $this->getContent( '.breadcrumbs a' ), 2, -1 ) );
     }
 
-//    public function getChildProducts( FeedItem $parent_fi ): array
-//    {
-////        $fi = clone $parent_fi;
-////
-////        $fi->setMpn($variant['sku'] ?? '' );
-////        $fi->setUpc( $this->productUpc($variant) );
-////        $fi->setProduct( $this->getChildProductName($variant['option_values']) );
-////        $fi->setImages( $images );
-////        $fi->setCostToUs( StringHelper::getMoney( $variant['price'] ) );
-////        $fi->setRAvail( $variant['inventory_level'] );
-////        $fi->setDimZ($variant['depth'] ?: $this->getDimZ() );
-////        $fi->setDimY($variant['height'] ?: $this->getDimY() );
-////        $fi->setDimX($variant['width'] ?: $this->getDimX() );
-////        $fi->setWeight($variant['weight'] ?: $this->getWeight() );
-////
-////        $child[] = $fi;
-//
-//        return $child;
-//    }
+    public function getChildProducts( FeedItem $parent_fi ): array
+    {
+        $child = [];
+
+        $this->filter( '[name*="options"] option' )
+            ->each( function ( ParserCrawler $c ) use ( $parent_fi, &$child ) {
+                if ($c->attr('price') !== null) {
+                    $fi = clone $parent_fi;
+
+                    $price = StringHelper::getFloat( $c->attr( 'price' ) ) + $parent_fi->getCostToUs();
+                    $product_name =  trim( preg_replace('/\+\$\d+[.]?\d*/', '', $c->text() ) );
+
+                    $fi->setProduct( $this->getProduct() . ' ' . $product_name );
+                    $fi->setCostToUs( $price );
+                    $fi->setRAvail( $this->getAvail() );
+                    $fi->setCategories( $this->getCategories() );
+                    $fi->setMpn( $this->getMpn() . ' ' . $c->attr( 'value' ) );
+
+                    $child[] = $fi;
+                }
+        });
+
+        return $child;
+    }
 }
