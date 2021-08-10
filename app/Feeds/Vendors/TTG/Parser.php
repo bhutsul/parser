@@ -31,7 +31,11 @@ class Parser extends HtmlParser
 
     public function isGroup(): bool
     {
-        return isset( $this->variation_data ) && count( $this->variation_data ) > 1;
+        if ( isset( $this->variation_data ) && count( $this->variation_data ) > 1 ) {
+            return true;
+        }
+
+        return isset( $this->product_data['options'] );
     }
 
     public function getProduct(): string
@@ -62,10 +66,16 @@ class Parser extends HtmlParser
 
     public function getImages(): array
     {
-        $images = $this->getSrcImages( '.wsite-com-product-images-secondary-image .wsite-imageaspectratio-image' );
+        $images = $this->getSrcImages( '.wsite-com-product-images-secondary-image' );
 
         if ( !$images ) {
-            return [];
+            $image_main = $this->getUri() . $this->getAttr( '#zoom1' , 'href' );
+
+            if ( !$image_main ) {
+                return [];
+            }
+
+            return [$image_main];
         }
 
         return array_map( fn( $image ) => $image . $this->getUri(), $images);
@@ -99,17 +109,15 @@ class Parser extends HtmlParser
     {
         $child = [];
 
-        $variations = array_values($this->variation_data);
-
-        foreach ( $variations as $key => $variation ) {
-            if ( $key > 0 ) {
+        foreach ( $this->variation_data as $variation ) {
+            if ( isset( $variation['options'] ) ) {
                 $fi = clone $parent_fi;
 
+                $option = $variation['options'][array_key_first( $variation['options'] )];
 
                 $fi->setProduct( $option['choices'] );
-                $fi->setCostToUs( $this->getCostToUs() );
-                $fi->setRAvail( $this->getAvail() );
-                $fi->setCategories( $this->getCategories() );
+                $fi->setCostToUs( StringHelper::getMoney( $option['sale_price'] ?? $option['price'] ?? 0 ) );
+                $fi->setRAvail( $option['inventory'] ?? 0 );
                 $fi->setMpn( $this->getMpn() . '-' . $option['choices'] );
 
                 $child[] = $fi;
