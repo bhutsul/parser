@@ -176,18 +176,32 @@ class Parser extends HtmlParser
                     $fi = clone $parent_fi;
 
                     $price = StringHelper::getFloat( $c->attr( 'price' ) ) + $parent_fi->getCostToUs();
-                    $product_name =  trim( preg_replace('/\+\$\d+[.]?\d*/', '', $c->text() ) );
+                    $product_name = trim( preg_replace('/\+\$\d+[.]?\d*/', '', $c->text() ) );
 
-                    $fi->setProduct( $this->getProduct() . ' ' . $product_name );
+                    $fi->setProduct( $product_name );
                     $fi->setCostToUs( $price );
                     $fi->setRAvail( $this->getAvail() );
                     $fi->setCategories( $this->getCategories() );
-                    $fi->setMpn( $this->getMpn() . ' ' . $c->attr( 'value' ) );
+                    $fi->setMpn( $this->getMpn() . '_' . $c->attr( 'value' ) );
+                    $fi->setVideos( $this->getVideos() );
 
                     $child[] = $fi;
                 }
         });
 
         return $child;
+    }
+
+    public function getVideos(): array
+    {
+        if ( !$this->exists( 'li#container_3 div.description div object' ) ) {
+            return [];
+        }
+
+        return [ [
+          'name' => $this->getProduct(),
+          'provider' => 'youtube',
+          'video' => $this->getAttr( 'li#container_3 div.description div object [name*="movie"]', 'value' )
+        ] ];
     }
 }
