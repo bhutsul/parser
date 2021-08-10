@@ -44,15 +44,22 @@ class Parser extends HtmlParser
 
         if (
             false !== stripos( $key, 'dimensions' )
-            && false === stripos( $key, 'glasses open' )
-            && false === stripos( $key, 'glasses closed' )
         ) {
-            $this->dims = FeedHelper::getDimsRegexp(
-                str_replace('”', "", $value ),
-                [self::DIMENSIONS_REGEX],
-                2,
-                1
-            );
+            if ( false === stripos( $value, 'glasses' ) ) {
+                $this->dims = FeedHelper::getDimsRegexp(
+                    str_replace('”', "", $value ),
+                    [self::DIMENSIONS_REGEX],
+                    2,
+                    1
+                );
+            }
+            else {
+                $next_dim_element = $c->nextAll()->first();
+                if ( $next_dim_element->exists( 'pre' ) ) {
+                    $value .= ' ' . $next_dim_element->getText( 'pre' );
+                }
+                $this->attributes[$key] = $value;
+            }
         }
         else if ( false !== stripos( $key, 'weight' ) ) {
             $this->pushWeight( $value );
