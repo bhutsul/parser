@@ -91,7 +91,7 @@ class Parser extends HtmlParser
         foreach ($options as $key => $option) {
             $fi = clone $parent_fi;
 
-            $price = count($options) === count($this->product_info['productItems'])
+            $price = count( $options ) === count( $this->product_info['productItems'] )
                 ? StringHelper::getFloat( $this->product_info['productItems'][$key]['price'] )
                 : $this->getCostToUs();
 
