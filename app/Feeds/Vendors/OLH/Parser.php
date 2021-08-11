@@ -52,7 +52,7 @@ class Parser extends HtmlParser
 
     public function getImages(): array
     {
-        $image = $this->getAttr( 'meta[property="og:image"]', 'content' );
+        $image = $this->getAttr( '#get-image-item-id', 'href' ) ?: $this->getAttr( 'meta[property="og:image"]', 'content' );
 
         if ( !$image ) {
             return [];
@@ -98,11 +98,15 @@ class Parser extends HtmlParser
 
         $options = $this->product_info['options'][array_key_first( $this->product_info['options'] )]['selections'];
 
-        foreach ($options as $option) {
+        foreach ($options as $key => $option) {
             $fi = clone $parent_fi;
 
+            $price = count($options) === count($this->product_info['productItems'])
+                ? StringHelper::getFloat( $this->product_info['productItems'][$key]['price'] )
+                : $this->getCostToUs();
+
             $fi->setProduct( $option['value'] );
-            $fi->setCostToUs( $this->getCostToUs() );
+            $fi->setCostToUs( $price );
             $fi->setRAvail( $this->getAvail() );
             $fi->setWeight( $this->getWeight() );
             $fi->setMpn( $option['value'] . '-' . $option['id'] );
