@@ -10,7 +10,7 @@ use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
 {
-    private array $product_info;
+    private null|array $product_info;
     public const WEIGHT_REGEX = '/(\d+[\.]?\d*)[\s]?[[a-zA-Z]{2,2}[\.]?/i';
 
     /**
