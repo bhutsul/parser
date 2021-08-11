@@ -54,27 +54,15 @@ class Parser extends HtmlParser
     {
         $image = $this->getAttr( '#get-image-item-id', 'href' ) ?: $this->getAttr( 'meta[property="og:image"]', 'content' );
 
-        if ( !$image ) {
-            return [];
-        }
-
-        return [
-            $image
-        ];
+        return $image ? [$image] : [];
     }
 
     public function getWeight(): ?float
     {
-        if ( !isset( $this->product_info['name'] ) ) {
+        if ( !isset( $this->product_info['name'] )
+            || !preg_match( self::WEIGHT_REGEX, $this->product_info['name'], $matches )
+        ) {
             return null;
-        }
-
-        if ( !preg_match( self::WEIGHT_REGEX, $this->product_info['name'], $matches ) ) {
-            return null;
-        }
-
-        if ( !isset( $matches[1] ) ) {
-           return null;
         }
 
         return FeedHelper::convertLbsFromOz( StringHelper::getFloat( $matches[1] ) );
@@ -82,7 +70,9 @@ class Parser extends HtmlParser
 
     public function getCostToUs(): float
     {
-        return StringHelper::getMoney( $this->product_info['price'] ?? $this->getAttr( 'meta[property="product:price:amount"]', 'content' ) );
+        return StringHelper::getMoney(
+            $this->product_info['price'] ?? $this->getAttr( 'meta[property="product:price:amount"]', 'content' )
+        );
     }
 
     public function getAvail(): ?int
@@ -106,10 +96,8 @@ class Parser extends HtmlParser
                 : $this->getCostToUs();
 
             $matches = [];
-            if ( preg_match( self::WEIGHT_REGEX, $option['value'], $matches ) ) {
-                if ( isset( $matches[1] ) ) {
-                    $weight = FeedHelper::convertLbsFromOz( StringHelper::getFloat( $matches[1] ) );
-                }
+            if ( preg_match( self::WEIGHT_REGEX, $option['value'], $matches ) && isset($matches[1] ) ) {
+                $weight = FeedHelper::convertLbsFromOz( StringHelper::getFloat( $matches[1] ) );
             }
 
             $fi->setProduct( $option['value'] );
