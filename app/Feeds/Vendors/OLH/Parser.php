@@ -96,7 +96,7 @@ class Parser extends HtmlParser
                 : $this->getCostToUs();
 
             $matches = [];
-            if ( preg_match( self::WEIGHT_REGEX, $option['value'], $matches ) && isset($matches[1] ) ) {
+            if ( preg_match( self::WEIGHT_REGEX, $option['value'], $matches ) ) {
                 $weight = FeedHelper::convertLbsFromOz( StringHelper::getFloat( $matches[1] ) );
             }
 
