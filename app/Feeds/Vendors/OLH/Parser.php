@@ -42,7 +42,7 @@ class Parser extends HtmlParser
 
     public function getMpn(): string
     {
-        return isset( $this->product_info['sku'] ) && $this->product_info['sku'] ?: $this->product_info['id'] ?? '';
+        return isset( $this->product_info['sku'] ) && $this->product_info['sku'] ? $this->product_info['sku'] : $this->product_info['id'] ?? '';
     }
 
     public function getDescription(): string
@@ -82,7 +82,7 @@ class Parser extends HtmlParser
 
     public function getCostToUs(): float
     {
-        return StringHelper::getMoney( $this->product_info['price'] ?? 0);
+        return StringHelper::getMoney( $this->product_info['price'] ?? $this->getAttr( 'meta[property="product:price:amount"]', 'content' ) );
     }
 
     public function getAvail(): ?int
