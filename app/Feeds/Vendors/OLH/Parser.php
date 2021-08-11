@@ -11,7 +11,7 @@ use App\Helpers\StringHelper;
 class Parser extends HtmlParser
 {
     private null|array $product_info;
-    public const WEIGHT_REGEX = '/(\d+[\.]?\d*)[\s]?[[a-zA-Z]{2,2}[\.]?/i';
+    public const WEIGHT_REGEX = '/(\d+[\.]?\d*)[\s]?oz[\.]?/i';
 
     /**
      * @throws \JsonException
@@ -105,10 +105,17 @@ class Parser extends HtmlParser
                 ? StringHelper::getFloat( $this->product_info['productItems'][$key]['price'] )
                 : $this->getCostToUs();
 
+            $matches = [];
+            if ( preg_match( self::WEIGHT_REGEX, $option['value'], $matches ) ) {
+                if ( isset( $matches[1] ) ) {
+                    $weight = FeedHelper::convertLbsFromOz( StringHelper::getFloat( $matches[1] ) );
+                }
+            }
+
             $fi->setProduct( $option['value'] );
             $fi->setCostToUs( $price );
             $fi->setRAvail( $this->getAvail() );
-            $fi->setWeight( $this->getWeight() );
+            $fi->setWeight( $weight ?? $this->getWeight() );
             $fi->setMpn( $option['value'] . '-' . $option['id'] );
 
             $child[] = $fi;
