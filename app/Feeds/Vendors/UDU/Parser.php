@@ -51,7 +51,7 @@ class Parser extends HtmlParser
                                 ( false !== stripos( $key, 'dimensions' ) )
                                 && preg_match( self::DIMENSIONS_REGEX, $value )
                             ) {
-                                $this->dims = FeedHelper::getDimsRegexp( $value, [self::DIMENSIONS_REGEX], 2, 1 );
+                                $this->dims = FeedHelper::getDimsRegexp( $value, [self::DIMENSIONS_REGEX], 3, 1, 2 );
                             }
                             else {
                                 $this->product_info['attributes'][$key] = $value;
