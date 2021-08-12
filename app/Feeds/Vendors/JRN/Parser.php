@@ -21,7 +21,7 @@ class Parser extends HtmlParser
      * @param FeedItem $parent_fi
      * @param ParserCrawler $option_selects
      * @param array $parent_params
-     * @param int $iteration
+     * @param int $parent_iteration
      * @throws \JsonException
      */
     private function recursiveGetOptionRequest(
@@ -29,15 +29,15 @@ class Parser extends HtmlParser
         FeedItem $parent_fi,
         ParserCrawler $option_selects,
         array $parent_params = [],
-        int $iteration = 0
+        int $parent_iteration = 1
     ): void {
-        $select = $option_selects->eq( $iteration );
+        $select = $option_selects->eq( $parent_iteration - 1 );
         $options = array_filter( $select->getAttrs( 'option', 'value' ) );
-        $iteration++;
 
         foreach ( $options as $option ) {
             $params = $parent_params ;
             $params[] = $option;
+            $iteration = $parent_iteration;
 
             if ( $iteration !== $option_selects->count() ) {
                 $data = $this->getVendor()
@@ -47,6 +47,7 @@ class Parser extends HtmlParser
                         $this->preparedParams('at', $params) + ['gc' => $this->product_info['sku']]
                     );
                 $selects = ( new ParserCrawler( $data->getData() ) )->filter( 'select' );
+                $iteration++;
 
                 $this->recursiveGetOptionRequest(
                     $child,
@@ -57,7 +58,6 @@ class Parser extends HtmlParser
                 );
             }
             else {
-                $iteration = 0;
                 $this->childClone(
                     $parent_fi,
                     $this->preparedParams('a', $params) + ['mg' => $this->product_info['sku'], 'lvl' => 'Web'],
@@ -93,7 +93,7 @@ class Parser extends HtmlParser
 
             $fi = clone $parent_fi;
 
-            $fi->setMpn( $product['MPN'] ?? $product['ITEMNO'] ?? '' );
+            $fi->setMpn( $product['ITEMNO'] ?? $product['MPN'] ?? '' );
             $fi->setUpc( $product['UPC'] ?: null );
             $fi->setProduct( $product['ITEMNAME'] );
             $fi->setCostToUs( StringHelper::getMoney( $product['PRICE'] ) );
@@ -116,6 +116,18 @@ class Parser extends HtmlParser
                 $json = json_decode( $match, true, 512, JSON_THROW_ON_ERROR );
                 if ( isset( $json['@type'] ) && $json['@type'] === 'Product' ) {
                     $this->product_info = $json;
+
+                    if ( $this->exists( '#mainItemDesc' ) ) {
+                        $this->filter( '#mainItemDesc a' )
+                            ->each( function ( ParserCrawler $c ) {
+                                if ( false !== stripos( $c->attr( 'href' ), 'pdf' ) ) {
+                                    $this->product_info['files'][] = [
+                                        'name' => $c->text(),
+                                        'link' => $c->attr( 'href' )
+                                    ];
+                                }
+                            });
+                    }
                 }
             }
         }
@@ -131,10 +143,21 @@ class Parser extends HtmlParser
         return $this->product_info['name'] ?? '';
     }
 
-//    public function getDescription(): string
-//    {
-//        return $this->getHtml( 'li#container_1 div.description p' ) ;
-//    }
+    public function getBrand(): ?string
+    {
+        return $this->product_info['brand']['name'] ?? '';
+    }
+
+    public function getDescription(): string
+    {
+        if ( !$this->exists( '#mainItemDesc' ) ) {
+            return '';
+        }
+
+        return preg_replace([
+            '/<a\b[^>]*>(.*?)<\/a>/i',
+        ], '', $this->getHtml( '#mainItemDesc' ));
+    }
 
     public function getShortDescription(): array
     {
@@ -143,7 +166,7 @@ class Parser extends HtmlParser
 
     public function getImages(): array
     {
-        return $this->getSrcImages( '.imgRttPopBig' );
+        return array_values( array_unique( $this->getSrcImages( '.imgRttPopBig' ) ) );
     }
 
     public function getVideos(): array
@@ -159,6 +182,11 @@ class Parser extends HtmlParser
         ], $this->getAttrs( '.ytvid ', 'data-ytid' ) );
     }
 
+    public function getProductFiles(): array
+    {
+        return $this->product_info['files'] ?? [];
+    }
+
     public function getMpn(): string
     {
         return $this->product_info['sku'] ?? '';
@@ -166,8 +194,20 @@ class Parser extends HtmlParser
 
     public function getCostToUs(): float
     {
-        return 222;
-//        return StringHelper::getMoney( $this->getText( 'div.price-box span.regular-price span.price' ) );
+        if ( !isset( $this->product_info['offers']['price'] ) ) {
+            return 0;
+        }
+
+        return StringHelper::getMoney( $this->product_info['offers']['price'] );
+    }
+
+    public function getListPrice(): ?float
+    {
+        if ( !$this->exists( '.old-price .price' ) ) {
+            return 0;
+        }
+
+        return StringHelper::getMoney( $this->getText( '.old-price .price' ) );
     }
 
     public function getAvail(): ?int
@@ -195,16 +235,16 @@ class Parser extends HtmlParser
             return [];
         }
 
-        $params = [
-            'md' => $this->product_info['sku'],
-            'lvl' => 'Web',
-        ];
-
         $child = [];
 
         $selects = $this->filter( '#mainItemAttribsDIV select' );
 
         if ( $selects->count() === 1 ) {
+            $params = [
+                'mg' => $this->product_info['sku'],
+                'lvl' => 'Web',
+            ];
+
             $options = array_filter( $selects->getAttrs( 'option', 'value' ) );
 
             foreach ( $options as $key => $option ) {
