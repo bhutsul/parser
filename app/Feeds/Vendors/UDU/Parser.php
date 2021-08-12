@@ -107,13 +107,19 @@ class Parser extends HtmlParser
 
     public function getAvail(): ?int
     {
-        if ( !isset( $this->product_info['offer']['availability'] ) ) {
+        if (
+            !isset( $this->product_info['offer']['availability'] )
+            || $this->product_info['offer']['availability'] !== 'http://schema.org/InStock'
+        ) {
             return 0;
         }
 
-        return $this->product_info['offer']['availability'] === 'http://schema.org/InStock'
-            ? self::DEFAULT_AVAIL_NUMBER
-            : 0;
+        return (int)$this->getAttr( '.quantity input', 'max' );
+    }
+
+    public function getCategories(): array
+    {
+        return $this->getContent( '.posted_in a' );
     }
 
     public function getDimX(): ?float
