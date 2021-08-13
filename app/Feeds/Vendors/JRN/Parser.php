@@ -246,7 +246,6 @@ class Parser extends HtmlParser
             $this->recursiveGetOptionRequest( $child, $parent_fi, $selects );
         }
 
-
         return $child;
     }
 }
