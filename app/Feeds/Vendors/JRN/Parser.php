@@ -43,7 +43,7 @@ class Parser extends HtmlParser
                     ->getDownloader()
                     ->get( self::$attributes_uri, $this->preparedParams( 'at', $params)  + [
                         'gc' => $this->product_info['sku']
-                    ]);
+                    ] );
                 $selects = ( new ParserCrawler( $data->getData() ) )->filter( 'select' );
 
                 $iteration++;
@@ -53,7 +53,7 @@ class Parser extends HtmlParser
             else {
                 $this->childClone($parent_fi, $child, $this->preparedParams( 'a', $params ) + [
                     'mg' => $this->product_info['sku'], 'lvl' => 'Web'
-                ]);
+                ] );
             }
         }
     }
@@ -239,7 +239,7 @@ class Parser extends HtmlParser
                 $this->childClone( $parent_fi,$child, $this->preparedParams( 'a', [$option] ) + [
                     'mg' => $this->product_info['sku'],
                     'lvl' => 'Web',
-                ]);
+                ] );
             }
         }
         else if ( $selects->count() > 1 ) {
