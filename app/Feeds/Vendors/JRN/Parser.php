@@ -41,7 +41,7 @@ class Parser extends HtmlParser
             if ( $iteration !== $option_selects->count() ) {
                 $data = $this->getVendor()
                     ->getDownloader()
-                    ->get( self::$attributes_uri, $this->preparedParams( 'at', $params)  + [
+                    ->get( self::$attributes_uri, $this->preparedParams( 'at', $params) + [
                         'gc' => $this->product_info['sku']
                     ] );
                 $selects = ( new ParserCrawler( $data->getData() ) )->filter( 'select' );
@@ -51,7 +51,7 @@ class Parser extends HtmlParser
                 $this->recursiveGetOptionRequest( $child, $parent_fi, $selects, $params, $iteration );
             }
             else {
-                $this->childClone($parent_fi, $child, $this->preparedParams( 'a', $params ) + [
+                $this->childClone( $parent_fi, $child, $this->preparedParams( 'a', $params ) + [
                     'mg' => $this->product_info['sku'], 'lvl' => 'Web'
                 ] );
             }
