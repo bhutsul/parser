@@ -41,7 +41,7 @@ class Parser extends HtmlParser
             if ( $iteration !== $option_selects->count() ) {
                 $data = $this->getVendor()
                     ->getDownloader()
-                    ->get( self::$attributes_uri, $this->preparedParams( 'at', $params) + [
+                    ->get( self::$attributes_uri, $this->preparedParams( 'at', $params ) + [
                         'gc' => $this->product_info['sku']
                     ] );
                 $selects = ( new ParserCrawler( $data->getData() ) )->filter( 'select' );
@@ -83,8 +83,18 @@ class Parser extends HtmlParser
      */
     private function childClone( FeedItem $parent_fi, array &$child, array $params ): void
     {
-        $data = $this->getVendor()->getDownloader()->get( self::$variant_uri, $params );
-        $data = json_decode( $data, true, 512, JSON_THROW_ON_ERROR );
+        $load = 1;
+        do {
+            $data_load = $this->getVendor()->getDownloader()->get( self::$variant_uri, $params );
+
+            if ( $data_load->getData() ) {
+                break;
+            }
+
+            $load++;
+        } while ( $load <= 5);
+
+        $data = json_decode( $data_load->getData(), true, 512, JSON_THROW_ON_ERROR );
 
         if ( isset( $data[0] ) ) {
             $product = $data[0];
@@ -111,7 +121,7 @@ class Parser extends HtmlParser
 
         if ( isset( $matches[1] ) ) {
             $json = preg_replace( '/"description":(.*?)",/', '', $matches[1]);
-            $this->product_info = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
+            $this->product_info = json_decode($json, true);
 
             if ( $this->exists( '#mainItemDesc' ) ) {
                 $this->filter( '#mainItemDesc a' )
@@ -160,7 +170,12 @@ class Parser extends HtmlParser
 
     public function getImages(): array
     {
-        return array_values( array_unique( $this->getSrcImages( '.imgRttPopBig' ) ) );
+        return array_values(
+            array_filter(
+                array_unique( $this->getSrcImages( '.imgRttPopBig' ) ),
+                    static fn( $image ) => false !== stripos( $image, 'coming_soon' )
+            )
+        );
     }
 
     public function getVideos(): array

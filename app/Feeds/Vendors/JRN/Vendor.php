@@ -21,7 +21,7 @@ class Vendor extends SitemapHttpProcessor
             return count( $fi->getChildProducts() );
         }
 
-        return !empty( $fi->getMpn() ) && count( $fi->getImages() );
+        return !empty( $fi->getMpn() ) && count( $fi->getImages() ) && $fi->getCostToUs() > 0;
     }
 
 }
