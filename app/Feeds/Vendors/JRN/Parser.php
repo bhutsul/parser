@@ -15,7 +15,6 @@ class Parser extends HtmlParser
     private static string $variant_uri = 'https://www.jracenstein.com/includes/custom_includes/mt360_GetMatrixItemDetails.asp';
     private static string $attributes_uri = 'https://www.jracenstein.com/includes/custom_includes/e2_GetProductAttribs.asp';
 
-
     /**
      * @param $child
      * @param FeedItem $parent_fi
@@ -35,38 +34,36 @@ class Parser extends HtmlParser
         $options = array_filter( $select->getAttrs( 'option', 'value' ) );
 
         foreach ( $options as $option ) {
-            $params = $parent_params ;
+            $params = $parent_params;
             $params[] = $option;
             $iteration = $parent_iteration;
 
             if ( $iteration !== $option_selects->count() ) {
                 $data = $this->getVendor()
                     ->getDownloader()
-                    ->get(
-                        self::$attributes_uri,
-                        $this->preparedParams('at', $params) + ['gc' => $this->product_info['sku']]
-                    );
+                    ->get( self::$attributes_uri, $this->preparedParams( 'at', $params)  + [
+                        'gc' => $this->product_info['sku']
+                    ]);
                 $selects = ( new ParserCrawler( $data->getData() ) )->filter( 'select' );
+
                 $iteration++;
 
-                $this->recursiveGetOptionRequest(
-                    $child,
-                    $parent_fi,
-                    $selects,
-                    $params,
-                    $iteration
-                );
+                $this->recursiveGetOptionRequest($child, $parent_fi, $selects, $params, $iteration);
             }
             else {
-                $this->childClone(
-                    $parent_fi,
-                    $this->preparedParams('a', $params) + ['mg' => $this->product_info['sku'], 'lvl' => 'Web'],
-                    $child
-                );
+                $this->childClone($parent_fi, $child, $this->preparedParams( 'a', $params ) + [
+                    'mg' => $this->product_info['sku'], 'lvl' => 'Web'
+                ]);
             }
         }
     }
 
+    /**
+     * method for prepare request params for options
+     * @param string $key
+     * @param array $array
+     * @return array
+     */
     private function preparedParams( string $key, array $array ): array
     {
         $prepared_params = [];
@@ -83,7 +80,7 @@ class Parser extends HtmlParser
     /**
      * @throws \JsonException
      */
-    private function childClone( FeedItem $parent_fi, array $params, array &$child ): void
+    private function childClone( FeedItem $parent_fi, array &$child, array $params ): void
     {
         $data = $this->getVendor()->getDownloader()->get( self::$variant_uri, $params );
         $data = json_decode( $data, true, 512, JSON_THROW_ON_ERROR );
@@ -109,26 +106,22 @@ class Parser extends HtmlParser
      */
     public function beforeParse(): void
     {
-        preg_match_all( '/<script type="application\/ld\+json">\s*(\{.*?\})\s*<\/script>/s', $this->node->html(), $matches );
+        preg_match('/<script type="application\/ld\+json">\s*({.*?})\s*</s', $this->node->html(), $matches );
 
         if ( isset( $matches[1] ) ) {
-            foreach ( $matches[1] as $match ) {
-                $json = json_decode( $match, true, 512, JSON_THROW_ON_ERROR );
-                if ( isset( $json['@type'] ) && $json['@type'] === 'Product' ) {
-                    $this->product_info = $json;
+            $json = preg_replace( '/"description":(.*?)",/', '', $matches[1]);
+            $this->product_info = json_decode( $json, true, 512, JSON_THROW_ON_ERROR );
 
-                    if ( $this->exists( '#mainItemDesc' ) ) {
-                        $this->filter( '#mainItemDesc a' )
-                            ->each( function ( ParserCrawler $c ) {
-                                if ( false !== stripos( $c->attr( 'href' ), 'pdf' ) ) {
-                                    $this->product_info['files'][] = [
-                                        'name' => $c->text(),
-                                        'link' => $c->attr( 'href' )
-                                    ];
-                                }
-                            });
-                    }
-                }
+            if ( $this->exists( '#mainItemDesc' ) ) {
+                $this->filter( '#mainItemDesc a' )
+                    ->each( function ( ParserCrawler $c ) {
+                        if ( false !== stripos( $c->attr( 'href' ), 'pdf' ) ) {
+                            $this->product_info['files'][] = [
+                                'name' => $c->text(),
+                                'link' => $c->attr( 'href' )
+                            ];
+                        }
+                    });
             }
         }
     }
@@ -247,10 +240,11 @@ class Parser extends HtmlParser
 
             $options = array_filter( $selects->getAttrs( 'option', 'value' ) );
 
-            foreach ( $options as $key => $option ) {
-                $params["a$key"] = $option;
-
-                $this->childClone( $parent_fi, $params, $child);
+            foreach ( $options as $option ) {
+                $this->childClone( $parent_fi,$child, $this->preparedParams( 'a', [$option] ) + [
+                    'mg' => $this->product_info['sku'],
+                    'lvl' => 'Web',
+                ]);
             }
         }
         else if ( $selects->count() > 1 ) {
