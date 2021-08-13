@@ -233,11 +233,6 @@ class Parser extends HtmlParser
         $selects = $this->filter( '#mainItemAttribsDIV select' );
 
         if ( $selects->count() === 1 ) {
-            $params = [
-                'mg' => $this->product_info['sku'],
-                'lvl' => 'Web',
-            ];
-
             $options = array_filter( $selects->getAttrs( 'option', 'value' ) );
 
             foreach ( $options as $option ) {
