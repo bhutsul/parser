@@ -48,7 +48,7 @@ class Parser extends HtmlParser
 
                 $iteration++;
 
-                $this->recursiveGetOptionRequest($child, $parent_fi, $selects, $params, $iteration);
+                $this->recursiveGetOptionRequest( $child, $parent_fi, $selects, $params, $iteration );
             }
             else {
                 $this->childClone($parent_fi, $child, $this->preparedParams( 'a', $params ) + [
