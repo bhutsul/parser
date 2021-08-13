@@ -1,28 +1,85 @@
 <?php
 
-
 namespace App\Helpers;
 
 class StringHelper
 {
-    public static function mb_ucfirst($string, $encoding = 'UTF-8'): string
+    /**
+     * Removes line breaks and repeated whitespace characters
+     * @param string $string
+     * @return string
+     */
+    public static function removeSpaces( string $string ): string
     {
-        $strlen = mb_strlen($string, $encoding);
-        $firstChar = mb_substr($string, 0, 1, $encoding);
-        $then = mb_substr($string, 1, $strlen - 1, $encoding);
-        return mb_strtoupper($firstChar, $encoding) . $then;
+        $string = str_replace( "\n", '', $string );
+        return trim( preg_replace( '/[ \s]+/u', ' ', $string ) );
     }
 
-    public static function mb_ucwords($string, $encoding = 'UTF-8'): string
+    /**
+     * Removes tabulation, carriage transfer. Removes duplicate line breaks and whitespace characters
+     * @param string $string
+     * @return string
+     */
+    public static function normalizeSpaceInString( string $string ): string
+    {
+        $string = trim( str_replace( ' ', ' ', $string ) );
+        $string = preg_replace( '/( )+/', " ", $string );
+        $string = preg_replace( [ '/\t+(( )+)?/', '/\r+(( )+)?/' ], '', $string );
+        $string = preg_replace( '/\n(( )+)?/', "\n", $string );
+        return preg_replace( '/\n+/', "\n", $string );
+    }
+
+    /**
+     * Splits the text into paragraphs according to the specified number of sentences, if the source text does not contain html tags
+     * @param string $string Text without html tags
+     * @param int $size Number of sentences in one paragraph
+     * @return string Formatted text
+     */
+    public static function paragraphing( string $string, int $size = 3 ): string
+    {
+        if ( $string === strip_tags( $string ) ) {
+            $text = '';
+            $paragraphs = array_chunk( preg_split( '/(?<=[.?!;])\s+(?=\p{Lu})/u', $string, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY ), $size );
+            foreach ( $paragraphs as $paragraph ) {
+                $string = implode( ' ', $paragraph );
+                $text .= "<p>$string</p>";
+            }
+            return $text;
+        }
+        return $string;
+    }
+
+    /**
+     * Checks whether the string is not empty
+     * @param string|null $string
+     * @return bool
+     */
+    public static function isNotEmpty( ?string $string ): bool
+    {
+        if ( empty( $string ) ) {
+            return false;
+        }
+        return !empty( preg_replace( '/\s+/', '', self::removeSpaces( $string ) ) );
+    }
+
+    public static function mb_ucfirst( $string, $encoding = 'UTF-8' ): string
+    {
+        $strlen = mb_strlen( $string, $encoding );
+        $firstChar = mb_substr( $string, 0, 1, $encoding );
+        $then = mb_substr( $string, 1, $strlen - 1, $encoding );
+        return mb_strtoupper( $firstChar, $encoding ) . $then;
+    }
+
+    public static function mb_ucwords( $string, $encoding = 'UTF-8' ): string
     {
         $upper_words = array();
-        $words = explode(' ', $string);
+        $words = explode( ' ', $string );
 
-        foreach ($words as $word) {
-            $upper_words[] = self::mb_ucfirst($word, $encoding);
+        foreach ( $words as $word ) {
+            $upper_words[] = self::mb_ucfirst( $word, $encoding );
         }
 
-        return implode(' ', $upper_words);
+        return implode( ' ', $upper_words );
 
     }
 
@@ -31,65 +88,61 @@ class StringHelper
      * @param string|string[] $trim_chars
      * @return string|string[]|null
      */
-    public static function mb_trim( $string, array|string $trim_chars = "\s")
+    public static function mb_trim( $string, array|string $trim_chars = "\s" )
     {
-        return preg_replace('/^[' . $trim_chars . ']*(?U)(.*)[' . $trim_chars . ']*$/u', '\\1', $string);
+        return preg_replace( '/^[' . $trim_chars . ']*(?U)(.*)[' . $trim_chars . ']*$/u', '\\1', $string );
     }
 
-    public static function removeSpaces($str)
-    {
-        $str = str_replace("\n", '', $str);
-        return trim( preg_replace( '/[ \s]+/u', ' ', $str ) );
-    }
-
-    private static function UPC_calculate_check_digit($upc_code)
+    private static function UPC_calculate_check_digit( $upc_code )
     {
         $sum = 0;
         $mult = 3;
-        for ($i = (\strlen($upc_code) - 2); $i >= 0; $i--) {
-            $sum += $mult * $upc_code[$i];
-            if ($mult == 3) {
+        for ( $i = ( \strlen( $upc_code ) - 2 ); $i >= 0; $i-- ) {
+            $sum += $mult * $upc_code[ $i ];
+            if ( $mult == 3 ) {
                 $mult = 1;
-            } else {
+            }
+            else {
                 $mult = 3;
             }
         }
-        if ($sum % 10 == 0) {
-            $sum = ($sum % 10);
-        } else {
-            $sum = 10 - ($sum % 10);
+        if ( $sum % 10 == 0 ) {
+            $sum = ( $sum % 10 );
+        }
+        else {
+            $sum = 10 - ( $sum % 10 );
         }
         return $sum;
     }
 
-    private static function isISBN($sCode)
+    private static function isISBN( $sCode )
     {
         $bResult = false;
-        if (\in_array(strlen($sCode), [10, 13], true) && \in_array(substr($sCode, 0, 3), [978, 979], true)) {
+        if ( \in_array( strlen( $sCode ), [ 10, 13 ], true ) && \in_array( substr( $sCode, 0, 3 ), [ 978, 979 ], true ) ) {
             $bResult = true;
         }
         return $bResult;
     }
 
-    public static function calculateUPC($upc_code)
+    public static function calculateUPC( $upc_code )
     {
-        $upc_code = preg_replace('/[^0-9]/', '', $upc_code);
-        switch (strlen($upc_code)) {
+        $upc_code = preg_replace( '/[^0-9]/', '', $upc_code );
+        switch ( strlen( $upc_code ) ) {
             case 8:
             case 14:
-                $cd = self::UPC_calculate_check_digit($upc_code);
-                if ($cd != $upc_code[strlen($upc_code) - 1]) {
-                    return substr($upc_code, 0, -1) . $cd;
+                $cd = self::UPC_calculate_check_digit( $upc_code );
+                if ( $cd != $upc_code[ strlen( $upc_code ) - 1 ] ) {
+                    return substr( $upc_code, 0, -1 ) . $cd;
                 }
 
                 return $upc_code;
             case 11:
             case 12:
             case 13:
-                $cd = self::UPC_calculate_check_digit($upc_code);
-                if ($cd != $upc_code[strlen($upc_code) - 1]) {
-                    if (!self::isISBN($upc_code) || (self::isISBN($upc_code) && strlen($upc_code) === 12)) {
-                        $cd = self::UPC_calculate_check_digit($upc_code . '1');
+                $cd = self::UPC_calculate_check_digit( $upc_code );
+                if ( $cd != $upc_code[ strlen( $upc_code ) - 1 ] ) {
+                    if ( !self::isISBN( $upc_code ) || ( self::isISBN( $upc_code ) && strlen( $upc_code ) === 12 ) ) {
+                        $cd = self::UPC_calculate_check_digit( $upc_code . '1' );
                         return $upc_code . $cd;
                     }
 
@@ -99,19 +152,6 @@ class StringHelper
                 return $upc_code;
         }
         return '';
-    }
-
-    public static function paragraphing($string, $size = 3)
-    {
-        $res = '';
-        $pArray = array_chunk(preg_split('/([^.!?]+[.!?]+)/', $string, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY), $size);
-        foreach ($pArray as $a) {
-            $res .= implode(' ', $a);
-            if (count($pArray) > 1) {
-                $res .= "<br/>";
-            }
-        }
-        return $res;
     }
 
     /**
@@ -163,9 +203,9 @@ class StringHelper
 
     public static function getMoney( string $price ): float
     {
-        $price = str_replace(',', '', $price);
-        preg_match('/\d+\.?(\d?)+/', $price, $matches);
-        return (float)($matches[0] ?? 0.0);
+        $price = str_replace( ',', '', $price );
+        preg_match( '/\d+\.?(\d?)+/', $price, $matches );
+        return (float)( $matches[ 0 ] ?? 0.0 );
     }
 
     public static function existsMoney( string $string ): string
@@ -195,11 +235,6 @@ class StringHelper
         return $float > 0.01 ? $float : $default;
     }
 
-    public static function normalizeSpaceInString( string $string ): string
-    {
-        return preg_replace( '/\s+/', ' ', trim( str_replace( ' ', ' ', $string ) ) );
-    }
-
     public static function normalizeSrcLink( $link, $domain ): string
     {
         $cleared_link = ltrim( str_replace( [ '../', './', '\\' ], '', $link ), '/' );
@@ -217,12 +252,12 @@ class StringHelper
 
         return $cleared_link;
     }
-    
+
     public static function cutTagsAttributes( string $string ): string
     {
         return preg_replace( '/(<[a-z]+)([^>]*)(>)/i', '$1$3', $string );
     }
-    
+
     /**
      * Cuts tags from the description, leaving the allowed tags, clearing them of styles
      *

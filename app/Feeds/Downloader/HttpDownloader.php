@@ -12,7 +12,6 @@ use Exception;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Pool;
 use GuzzleHttp\Psr7\Response;
-use JetBrains\PhpStorm\Pure;
 
 class HttpDownloader
 {
@@ -35,21 +34,23 @@ class HttpDownloader
     /**
      * @var array Parameters for authorization
      *
-     * 'check_login_text' => 'Log Out' - A verification word that is displayed only to authorized users (Log Out, My account ...)
-     * 'auth_url' => 'https://www.authorise_uri.com/login' - The URL to which the authorization request is sent
-     * 'auth_form_url' => 'https://www.authorise_uri.com/login' - The URL of the page where the authorization form is located
-     * 'auth_info' => [] - An array of parameters for authorization, contains all the fields that were sent by the browser for authorization
-     * 'find_fields_form' => true|false - Determines whether to search for additional fields of the authorization form before sending the request or not
-     * If this parameter is omitted, the system will consider its value as "true"
-     * 'api_auth' => true|false - Specifies in what form to send the parameters of the authorization form ("request_payload" or "form_data")
+     * 'check_login_text' = > 'Log Out' is a verification word that is displayed only to authorized users (Log Out, My account, and others).
+     * 'auth_url' = > 'https://www.authorise_uri.com/login' - The URL to which the authorization request is sent.
+     * 'auth_form_url' = > 'https://www.authorise_uri.com/login' - The URL of the page where the authorization form is located.
+     * 'auth_info' = > [] - An array of parameters for authorization, contains all the fields that were sent by the browser for authorization
+     * 'find_fields_form' = > true|false-Determines whether to search for additional fields of the authorization form before sending the request or not
+     * If this parameter is omitted, the system will consider its value as " true"
+     * 'api_auth' = > true|false-Specifies in what form to send the authorization form parameters ("request_payload" or "form_data")
      * If this parameter is omitted, the system will consider its value as "false".
      * By default, the parameters are sent as normal form fields
      *
-     * Example of the content auth_info:
-     * 'auth_info' => [
-     *     'login[username]' => 'user@my-email.com',
-     *     'login[password]' => 'My-Password',
+     * Example of the auth_info content:
+     * 'auth_info' = > [
+     * 'login[username]' => 'login',
+     * 'login[password]' => 'password',
      * ],
+     * The values of 'login' and 'password' are automatically replaced with the current login and password for authorization on the site
+     * This is done to automatically update the data when they change
      */
     private array $params;
     /**
@@ -139,8 +140,8 @@ class HttpDownloader
      * An associative array, of the form:
      * 'data' => new Data() - The content of the response to the request
      * 'link' => [
-     * 'url' => $link->getUrl() - The address of the link to which the request was sent
-     * 'params' => $link->getParams() - Array of request parameters
+     *     'url' => $link->getUrl() - The address of the link to which the request was sent
+     *     'params' => $link->getParams() - Array of request parameters
      * ]
      * @return array An array of responses to requests, each response is placed in an object app/Feeds/Utils/Data
      */
@@ -171,6 +172,7 @@ class HttpDownloader
                     return $this->getClient()->request( $link->getUrl(), $link->getParams(), $link->getMethod(), $link->getTypeParams() )->
                     then(
                         function ( Response $response ) use ( $link, &$data, $assoc ) {
+                            $this->getClient()->setResponse( $response );
                             if ( $body = $response->getBody() ) {
                                 $response_body = new Data( $body->getContents() );
                             }
@@ -179,7 +181,7 @@ class HttpDownloader
                         function ( RequestException $exception ) use ( $link, &$data, &$errors_links, $assoc ) {
                             if ( $response = $exception->getResponse() ) {
                                 $status = $response->getStatusCode();
-                                if ( $status === 403 ) {
+                                if ( $status === 403 || $status === 430 ) {
                                     if ( $this->use_proxy ) {
                                         $this->connect = false;
                                     }
@@ -188,7 +190,7 @@ class HttpDownloader
                                 elseif ( $status >= 500 ) {
                                     $errors_links[] = $this->prepareErrorLinks( $link, 0 );
                                 }
-                                elseif ( in_array( $status, [ 200, 404 ], true ) ) {
+                                elseif ( in_array( $status, [ 200, 404 ] ) ) {
                                     $data = $this->prepareRequestData( new Data( $response->getBody()->getContents() ), $link, $assoc, $data );
                                 }
                                 else {
@@ -221,9 +223,9 @@ class HttpDownloader
     }
 
     /**
-     * Attempt to load links with 403 or 500 errors when loading them
+     * Attempt to load links with 403 or 503 errors during loading
      * @param array $errors_links Array of the form ['link' => Link, 'delay' => delay_s]
-     * @param bool $assoc In what form should I return an array of responses to requests
+     * @param bool $assoc In what form to return an array of responses to requests
      * @return array Array of responses to requests
      */
     private function processErrorLinks( array $errors_links, bool $assoc ): array
@@ -261,6 +263,7 @@ class HttpDownloader
                 );
                 $promise->wait();
                 if ( $response && $body = $response->getBody() ) {
+                    $this->getClient()->setResponse( $response );
                     $response_body = new Data( $body->getContents() );
                     break;
                 }
@@ -360,10 +363,27 @@ class HttpDownloader
     }
 
     /**
-    * Sets a new cookie
-    * @param string $name Cookie name
-    * @param string $value Cookie value
-    */
+     * Deletes the title by its name
+     * @param string $name Title name
+     */
+    public function removeHeader( string $name ): void
+    {
+        $this->getClient()->removeHeader( $name );
+    }
+
+    /**
+     * Removes all headers
+     */
+    public function removeHeaders(): void
+    {
+        $this->getClient()->removeHeaders();
+    }
+
+    /**
+     * Sets a new cookie
+     * @param string $name Cookie name
+     * @param string $value Cookie value
+     */
     public function setCookie( string $name, string $value ): void
     {
         try {
@@ -376,7 +396,7 @@ class HttpDownloader
     /**
      * Returns the value of the specified cookie
      * @param string $name Cookie name
-     * @return string cookie value
+     * @return string Cookie value
      */
     public function getCookie( string $name ): string
     {
@@ -384,11 +404,24 @@ class HttpDownloader
     }
 
     /**
+     * Returns an array containing an associative array with information about all active cookies
+     * [
+     * 'Name' => Cookie name
+     * 'Value' => Cookie value
+     * 'Domain' => The domain for which the cookie was installed
+     * ]
+     */
+    public function getCookies(): array
+    {
+        return $this->getClient()->getCookies();
+    }
+
+    /**
      * Deletes all cookies
      */
-    public function clearCookie(): void
+    public function removeCookies(): void
     {
-        $this->getClient()->clearCookie();
+        $this->getClient()->removeCookies();
     }
 
     private function printParseError( Link $link, RequestException $exception ): void
@@ -398,9 +431,6 @@ class HttpDownloader
                 echo PHP_EOL . "Parser Error: " . $response->getReasonPhrase() .
                     PHP_EOL . "Status code: " . $response->getStatusCode() .
                     PHP_EOL . "URI: " . $link->getUrl() . PHP_EOL;
-            }
-            else {
-                return;
             }
         }
         else {
@@ -512,7 +542,7 @@ class HttpDownloader
      * @param string $field_name The name of the field located inside the desired form. The form will be searched by the name of this field
      * To get all fields from any form, you must pass an empty value
      * @param array $params Array of parameters with the original values, if any
-     * @ * @param bool $only_hidden Parameter allows you to collect all the fields of the form or only hidden ones. By default, all fields of the form are collected
+     * The @param bool $only_hidden parameter allows you to collect all the fields of the form or only hidden ones. By default, all fields of the form are collected
      * @return array An associative array in which the keys are the names of the form fields, the values are the values of the form fields
      */
     public function getFieldsFormOnLink( string|Link $link, string $field_name = '', array $params = [], bool $only_hidden = false ): array
@@ -526,7 +556,7 @@ class HttpDownloader
      * @param string $field_name The name of the field located inside the desired form. The form will be searched by the name of this field
      * To get all fields from any form, you must pass an empty value
      * @param array $params Array of parameters with the original values, if any
-     * @ * @param bool $only_hidden Parameter allows you to collect all the fields of the form or only hidden ones. By default, all fields of the form are collected
+     * The @param bool $only_hidden parameter allows you to collect all the fields of the form or only hidden ones. By default, all fields of the form are collected
      * @return array An associative array in which the keys are the names of the form fields, the values are the values of the form fields
      */
     public function getFieldsFormOnCrawler( ParserCrawler $crawler, string $field_name = '', array $params = [], bool $only_hidden = false ): array
@@ -578,16 +608,11 @@ class HttpDownloader
 
     /**
      * Verification of authorization on the site by the verification word
-     * @Parameter Analyzer crawler $crawler
      * @param ParserCrawler $crawler
      * @return bool
      */
     public function checkLogin( ParserCrawler $crawler ): bool
     {
-        if ( !$crawler ) {
-            return false;
-        }
-
         if ( $this->getCheckLoginText() && $crawler->count() ) {
             if ( stripos( $crawler->text(), $this->getCheckLoginText() ) !== false ) {
                 print PHP_EOL . 'Authorization successful!' . PHP_EOL;
