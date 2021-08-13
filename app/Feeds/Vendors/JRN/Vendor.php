@@ -8,6 +8,7 @@ use App\Feeds\Processor\SitemapHttpProcessor;
 class Vendor extends SitemapHttpProcessor
 {
     protected array $first = ['https://www.jracenstein.com/sitemaps/sitemap_products.xml'];
+
     /**
      * @param FeedItem $fi
      * @return bool

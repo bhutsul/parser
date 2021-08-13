@@ -173,7 +173,7 @@ class Parser extends HtmlParser
         return array_values(
             array_filter(
                 array_unique( $this->getSrcImages( '.imgRttPopBig' ) ),
-                    static fn( $image ) => false !== stripos( $image, 'coming_soon' )
+                    static fn( $image ) => false === stripos( $image, 'coming_soon' )
             )
         );
     }
