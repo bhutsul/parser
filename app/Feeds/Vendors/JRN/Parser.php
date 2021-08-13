@@ -52,7 +52,8 @@ class Parser extends HtmlParser
             }
             else {
                 $this->childClone( $parent_fi, $child, $this->preparedParams( 'a', $params ) + [
-                    'mg' => $this->product_info['sku'], 'lvl' => 'Web'
+                    'mg' => $this->product_info['sku'],
+                    'lvl' => 'Web'
                 ] );
             }
         }
@@ -118,7 +119,7 @@ class Parser extends HtmlParser
                         if ( false !== stripos( $c->attr( 'href' ), 'pdf' ) ) {
                             $this->product_info['files'][] = [
                                 'name' => $c->text(),
-                                'link' => $c->attr( 'href' )
+                                'link' => 'https://www.jracenstein.com' . $c->attr( 'href' )
                             ];
                         }
                     });
@@ -196,11 +197,11 @@ class Parser extends HtmlParser
 
     public function getListPrice(): ?float
     {
-        if ( !$this->exists( '.old-price .price' ) ) {
+        if ( !$this->exists( '#prodPriceContainer .old-price .price' ) ) {
             return 0;
         }
 
-        return StringHelper::getMoney( $this->getText( '.old-price .price' ) );
+        return StringHelper::getMoney( $this->getText( '#prodPriceContainer .old-price .price' ) );
     }
 
     public function getAvail(): ?int
