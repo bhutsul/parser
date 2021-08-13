@@ -123,7 +123,10 @@ class Parser extends HtmlParser
             $json = preg_replace( '/"description":(.*?)",/', '', $matches[1]);
             $this->product_info = json_decode($json, true);
 
+
             if ( $this->exists( '#mainItemDesc' ) ) {
+                $this->product_info['descriptions'] = FeedHelper::getShortsAndAttributesInDescription( $this->getHtml( '#mainItemDesc' ) );
+
                 $this->filter( '#mainItemDesc a' )
                     ->each( function ( ParserCrawler $c ) {
                         if ( false !== stripos( $c->attr( 'href' ), 'pdf' ) ) {
@@ -154,18 +157,30 @@ class Parser extends HtmlParser
 
     public function getDescription(): string
     {
-        if ( !$this->exists( '#mainItemDesc' ) ) {
+        if ( !isset( $this->product_info['descriptions']['description'] ) ) {
             return '';
         }
 
-        return preg_replace([
-            '/<a\b[^>]*>(.*?)<\/a>/i',
-        ], '', $this->getHtml( '#mainItemDesc' ));
+        return FeedHelper::cleanProductDescription( preg_replace([
+                '/<a\b[^>]*>(.*?)<\/a>/i',
+            ], '', $this->product_info['descriptions']['description'] )
+        );
     }
 
     public function getShortDescription(): array
     {
-        return $this->getContent( '#mainItemSummary .short-description ul li' );
+        $shorts = $this->getContent( '#mainItemSummary .short-description ul li' );
+
+        if ( isset( $this->product_info['descriptions']['short_description'] ) ) {
+            $shorts = array_merge( $shorts, $this->product_info['descriptions']['short_description'] );
+        }
+
+        return $shorts;
+    }
+
+    public function getAttributes(): ?array
+    {
+        return $this->product_info['descriptions']['attributes'] ?? null;
     }
 
     public function getImages(): array
