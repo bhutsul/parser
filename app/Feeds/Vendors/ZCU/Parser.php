@@ -111,7 +111,7 @@ class Parser extends HtmlParser
     {
         return isset( $this->product_info['inventory']['status'] )
                 && $this->product_info['inventory']['status'] === 'in_stock'
-                    ? self::DEFAULT_AVAIL_NUMBER
+                    ? $this->product_info['inventory']['quantity']
                     : 0;
     }
 }

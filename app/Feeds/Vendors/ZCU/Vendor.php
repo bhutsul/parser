@@ -12,9 +12,9 @@ class Vendor extends SitemapHttpProcessor
      * @param FeedItem $fi
      * @return bool
      */
-//    protected function isValidFeedItem(FeedItem $fi ): bool
-//    {
-//        return !empty( $fi->getMpn() ) && count( $fi->getImages() ) && $fi->getCostToUs() > 0;
-//    }
+    protected function isValidFeedItem(FeedItem $fi ): bool
+    {
+        return !empty( $fi->getMpn() ) && count( $fi->getImages() ) && $fi->getCostToUs() > 0;
+    }
 
 }
