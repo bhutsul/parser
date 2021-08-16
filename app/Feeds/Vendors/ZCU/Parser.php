@@ -65,7 +65,7 @@ class Parser extends HtmlParser
     {
         for ( $i = 0; $i <= 10; $i ++ ) {
             if ( $this->exists( '#wix-warmup-data' ) ) {
-                $warmup_data = json_decode( $this->getText('#wix-warmup-data'), true );
+                $warmup_data = json_decode($this->getText('#wix-warmup-data'), true, 512, JSON_THROW_ON_ERROR);
 
                 if ( isset( $warmup_data['appsWarmupData'] ) && count( $warmup_data['appsWarmupData'] ) ) {
                     $product = $warmup_data['appsWarmupData'][array_key_first($warmup_data['appsWarmupData'])];
