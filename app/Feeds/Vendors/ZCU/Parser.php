@@ -27,55 +27,55 @@ class Parser extends HtmlParser
 
                     $this->product_info = $product[array_key_first( $product )]['catalog']['product'] ?? null;
 
-                    $short_and_attributes = FeedHelper::getShortsAndAttributesInList(
-                        $this->getHtml('div[data-hook="info-section-description"]')
-                    );
-
-                    if ( $this->exists( 'section[data-hook="description-wrapper"] ul li' ) ) {
+                    if ( $this->product_info ) {
                         $short_and_attributes = FeedHelper::getShortsAndAttributesInList(
-                            $this->product_info['description'],
-                            $short_and_attributes['short_description'],
-                            $short_and_attributes['attributes'] ?: [],
+                            $this->getHtml('div[data-hook="info-section-description"]')
                         );
 
-                        $this->product_info['description'] = FeedHelper::cleanProductDescription(
-                            preg_replace( '/<ul\b[^>]*>(.*?)<\/ul>/i', '', $this->product_info['description'] )
-                        );
-                    }
+                        if ( $this->exists( 'section[data-hook="description-wrapper"] ul li' ) ) {
+                            $short_and_attributes = FeedHelper::getShortsAndAttributesInList(
+                                $this->product_info['description'],
+                                $short_and_attributes['short_description'],
+                                $short_and_attributes['attributes'] ?: [],
+                            );
 
-                    if ($short_and_attributes['attributes']) {
-                        foreach ( $short_and_attributes['attributes'] as $key => $attribute ) {
-                            if ( false !== stripos( $key, 'size' ) ) {
-                                $this->product_info['dims'] = FeedHelper::getDimsRegexp(
-                                    str_replace('”', "", $attribute),
-                                    [self::DIMS_REGEX],
-                                    3,
-                                    2,
-                                    1
-                                );
-
-                                continue;
-                            }
-
-                            $this->product_info['attributes'][$key] = $attribute;
+                            $this->product_info['description'] = preg_replace( '/<ul\b[^>]*>(.*?)<\/ul>/i', '', $this->product_info['description'] );
                         }
-                    }
 
-                    if ($short_and_attributes['short_description']) {
-                        foreach ( $short_and_attributes['short_description'] as $description ) {
-                            if ( false !== stripos( $description, 'measures approximately' ) ) {
-                                $this->product_info['dims'] = FeedHelper::getDimsRegexp(
-                                    str_replace('”', "", $description),
-                                    [self::DIMS_REGEX],
-                                    3,
-                                    2,
-                                    1
-                                );
+                        if ( $short_and_attributes['attributes'] ) {
+                            foreach ( $short_and_attributes['attributes'] as $key => $attribute ) {
+                                if ( false !== stripos( $key, 'size' ) ) {
+                                    $this->product_info['dims'] = FeedHelper::getDimsRegexp(
+                                        str_replace('”', "", $attribute),
+                                        [self::DIMS_REGEX],
+                                        3,
+                                        2,
+                                        1
+                                    );
 
-                                continue;
+                                    continue;
+                                }
+
+                                $this->product_info['attributes'][$key] = $attribute;
                             }
+                        }
 
-                            $this->product_info['short_desc'][] = $description;
+                        if ( $short_and_attributes['short_description'] ) {
+                            foreach ( $short_and_attributes['short_description'] as $description ) {
+                                if ( false !== stripos( $description, 'measures approximately' ) ) {
+                                    $this->product_info['dims'] = FeedHelper::getDimsRegexp(
+                                        str_replace('”', "", $description),
+                                        [self::DIMS_REGEX],
+                                        3,
+                                        2,
+                                        1
+                                    );
+
+                                    continue;
+                                }
+
+                                $this->product_info['short_desc'][] = $description;
+                            }
                         }
                     }
 
@@ -103,7 +103,9 @@ class Parser extends HtmlParser
 
     public function getDescription(): string
     {
-        return $this->product_info['description'] ?? $this->getAttr( 'meta[property="og:description"]', 'content' );
+        return FeedHelper::cleanProductDescription(
+            $this->product_info['description'] ?? $this->getAttr( 'meta[property="og:description"]', 'content' )
+        );
     }
 
     public function getShortDescription(): array
