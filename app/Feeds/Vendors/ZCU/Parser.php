@@ -13,6 +13,51 @@ class Parser extends HtmlParser
     public const DIMS_REGEX = '/(\d+[\.]?\d*)[\',",”]?(?:[a-z]{4,4})?[\s]?[x,X][\s]?(\d+[\.]?\d*)[\',",”]?[\s]?[x,X]?[\s]?(:?\d+[\.]?\d*)?/i';
 
     private null|array $product_info;
+
+    private function pushDims( string $description ): void
+    {
+        $this->product_info['dims'] = FeedHelper::getDimsRegexp(
+            str_replace('”', "", $description),
+            [self::DIMS_REGEX],
+            3,
+            2,
+            1
+        );
+    }
+
+    private function pushAttributesAndShorts( array $short_and_attributes ): void
+    {
+        if ( $short_and_attributes['attributes'] ) {
+            foreach ( $short_and_attributes['attributes'] as $key => $attribute ) {
+                if ( false !== stripos( $key, 'size' ) ) {
+                    $this->pushDims( $attribute );
+
+                    continue;
+                }
+
+                $this->product_info['attributes'][$key] = $attribute;
+            }
+        }
+
+        if ( $short_and_attributes['short_description'] ) {
+            foreach ( $short_and_attributes['short_description'] as $description ) {
+                if ( false !== stripos( $description, 'measures approximately' ) ) {
+                    $this->pushDims( $description );
+
+                    continue;
+                }
+
+                $this->product_info['short_desc'][] = $description;
+            }
+        }
+
+        if (
+            isset( $this->product_info['description'] )
+            && false !== stripos( $this->product_info['description'], 'size' )
+        ) {
+            $this->pushDims( $this->product_info['description'] );
+        }
+    }
     /**
      * @throws \JsonException
      */
@@ -39,44 +84,13 @@ class Parser extends HtmlParser
                                 $short_and_attributes['attributes'] ?: [],
                             );
 
-                            $this->product_info['description'] = preg_replace( '/<ul\b[^>]*>(.*?)<\/ul>/i', '', $this->product_info['description'] );
+                            $this->product_info['description'] = preg_replace(
+                                '/<ul\b[^>]*>(.*?)<\/ul>/i',
+                                '',
+                                $this->product_info['description']
+                            );
                         }
-
-                        if ( $short_and_attributes['attributes'] ) {
-                            foreach ( $short_and_attributes['attributes'] as $key => $attribute ) {
-                                if ( false !== stripos( $key, 'size' ) ) {
-                                    $this->product_info['dims'] = FeedHelper::getDimsRegexp(
-                                        str_replace('”', "", $attribute),
-                                        [self::DIMS_REGEX],
-                                        3,
-                                        2,
-                                        1
-                                    );
-
-                                    continue;
-                                }
-
-                                $this->product_info['attributes'][$key] = $attribute;
-                            }
-                        }
-
-                        if ( $short_and_attributes['short_description'] ) {
-                            foreach ( $short_and_attributes['short_description'] as $description ) {
-                                if ( false !== stripos( $description, 'measures approximately' ) ) {
-                                    $this->product_info['dims'] = FeedHelper::getDimsRegexp(
-                                        str_replace('”', "", $description),
-                                        [self::DIMS_REGEX],
-                                        3,
-                                        2,
-                                        1
-                                    );
-
-                                    continue;
-                                }
-
-                                $this->product_info['short_desc'][] = $description;
-                            }
-                        }
+                        $this->pushAttributesAndShorts( $short_and_attributes );
                     }
 
                     break;
