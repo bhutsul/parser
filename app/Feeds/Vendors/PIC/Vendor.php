@@ -4,21 +4,31 @@ namespace App\Feeds\Vendors\PIC;
 
 use App\Feeds\Feed\FeedItem;
 use App\Feeds\Processor\HttpProcessor;
+use App\Feeds\Processor\SitemapHttpProcessor;
+use App\Feeds\Utils\Link;
 
-class Vendor extends HttpProcessor
+class Vendor extends SitemapHttpProcessor
 {
-    public const CATEGORY_LINK_CSS_SELECTORS = ['#menu-ptfob li ul.sub-menu li a', '.woocommerce-pagination ul li a'];
-    public const PRODUCT_LINK_CSS_SELECTORS = ['.woocommerce-LoopProduct-link'];
+    protected array $first = ['https://www.picnictime.com/sitemap_index.xml'];
 
-    protected array $first = ['https://www.picnictime.com/'];
+    /**
+     * @param FeedItem $fi
+     * @return bool
+     */
+    protected function isValidFeedItem(FeedItem $fi ): bool
+    {
+        if ( $fi->isGroup() ) {
+            $fi->setChildProducts( array_values(
+                array_filter( $fi->getChildProducts(), static fn( FeedItem $item ) => !empty( $item->getMpn() ) && count( $item->getImages() ) && $item->getCostToUs() > 0 )
+            ) );
+            return count( $fi->getChildProducts() );
+        }
 
-//    /**
-//     * @param FeedItem $fi
-//     * @return bool
-//     */
-//    protected function isValidFeedItem(FeedItem $fi ): bool
-//    {
-//        return !empty( $fi->getMpn() ) && count( $fi->getImages() );
-//    }
+        return !empty( $fi->getMpn() ) && count( $fi->getImages() ) && $fi->getCostToUs() > 0;
+    }
 
+    public function filterProductLinks( Link $link ): bool
+    {
+        return str_contains( $link->getUrl(), '/product/' );
+    }
 }

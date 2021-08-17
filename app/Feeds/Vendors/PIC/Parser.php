@@ -33,8 +33,14 @@ class Parser extends HtmlParser
                     else if ( false !== stripos( $key, 'shipping dimensions' ) ) {
                         $this->product_info['shipping_dims'] = FeedHelper::getDimsInString($value, 'x', 0, 2, 1);
                     }
-                    else if ( ( false !== stripos( $key, 'shipping weight' ) ) ) {
+                    else if ( false !== stripos( $key, 'shipping weight' ) ) {
                         $this->product_info['shipping_weight'] = StringHelper::getFloat( $value );
+                    }
+                    else if (
+                        ( false !== stripos( $key, 'components' ) )
+                        || ( false !== stripos( $key, 'features' ) )
+                    ) {
+                        $this->product_info['shorts'][] = $value;
                     }
                     else {
                         $this->product_info['attributes'][$key] = $value;
@@ -42,11 +48,11 @@ class Parser extends HtmlParser
                 });
         }
 
-        if ( $this->exists( '.fluid-width-video-wrapper iframe') ) {
+        if ( $this->exists( '#product-description iframe') ) {
             $this->product_info['videos'][] = [
                 'name' => $this->getProduct(),
                 'provider' => 'youtube',
-                'video' => $this->getAttr( 'fluid-width-video-wrapper iframe', 'nitro-og-src' )
+                'video' => $this->getAttr( '#product-description iframe', 'nitro-og-src' )
             ];
         }
     }
@@ -68,14 +74,19 @@ class Parser extends HtmlParser
 
     public function getDescription(): string
     {
-        return FeedHelper::cleanProductDescription( $this->getHtml( '#product-description' ) );
+        return FeedHelper::cleanProductDescription(
+            preg_replace( '/<h2\b[^>]*>(.*?)<\/h2>/i', '', $this->getHtml( '#product-description' ) )
+        );
     }
 
     public function getShortDescription(): array
     {
-        return FeedHelper::cleanShortDescription(
-            $this->getContent( '.woocommerce-product-details__short-description p' )
-        );
+        $shorts = $this->getContent( '.woocommerce-product-details__short-description p' );
+
+        if ( isset( $this->product_info['shorts'] ) ) {
+            $shorts = array_merge( $shorts, $this->product_info['shorts'] );
+        }
+        return FeedHelper::cleanShortDescription( $shorts );
     }
 
     public function getImages(): array
