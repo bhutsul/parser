@@ -36,13 +36,23 @@ class Parser extends HtmlParser
                     else if ( false !== stripos( $key, 'shipping weight' ) ) {
                         $this->product_info['shipping_weight'] = StringHelper::getFloat( $value );
                     }
-                    else if (
-                        ( false !== stripos( $key, 'components' ) )
-                        || ( false !== stripos( $key, 'features' ) )
-                    ) {
-                        $this->product_info['shorts'][] = $value;
+                    else if ( false !== stripos( $key, 'brand' ) ) {
+                        $this->product_info['brand'] = StringHelper::getFloat( $value );
+                    }
+                    else if ( false !== stripos( $key, 'features' ) ) {
+                        $shorts = explode('<br>', $c->getHtml( 'td p' ) );
+
+                        foreach ( $shorts as $short ) {
+                            $this->product_info['shorts'][] = $short;
+                        }
                     }
                     else {
+                        if (
+                            false !== stripos( $key, 'components' )
+                            &&  false === stripos( $key, 'number of components' )
+                        ) {
+                            $value = str_replace( "<br>", ' \n ', $c->getHtml( 'td p' ) );
+                        }
                         $this->product_info['attributes'][$key] = $value;
                     }
                 });
@@ -72,21 +82,25 @@ class Parser extends HtmlParser
         return $this->getText( 'span.sku_wrapper .sku' );
     }
 
+    public function getBrand(): ?string
+    {
+        return $this->product_info['brand'] ?? null;
+    }
+
     public function getDescription(): string
     {
         return FeedHelper::cleanProductDescription(
-            preg_replace( '/<h2\b[^>]*>(.*?)<\/h2>/i', '', $this->getHtml( '#product-description' ) )
+            $this->exists( '#product-description' )
+                ? preg_replace( '/<h2\b[^>]*>(.*?)<\/h2>/i', '', $this->getHtml( '#product-description' ) )
+                : $this->getHtml( '.woocommerce-product-details__short-description p' )
         );
     }
 
     public function getShortDescription(): array
     {
-        $shorts = $this->getContent( '.woocommerce-product-details__short-description p' );
-
-        if ( isset( $this->product_info['shorts'] ) ) {
-            $shorts = array_merge( $shorts, $this->product_info['shorts'] );
-        }
-        return FeedHelper::cleanShortDescription( $shorts );
+        return isset( $this->product_info['shorts'] )
+                    ? FeedHelper::cleanShortDescription( $this->product_info['shorts'] )
+                    : [];
     }
 
     public function getImages(): array
@@ -174,11 +188,12 @@ class Parser extends HtmlParser
         foreach ( $variations as $variation ) {
             $fi = clone $parent_fi;
 
+            $fi->setProduct($variation['attributes']['attribute_pa_color'] ?? '' );
             $fi->setMpn($variation['sku'] ?? '' );
             $fi->setImages( [$variation['image']['url']] );
             $fi->setCostToUs( StringHelper::getMoney( $variation['display_price'] ) );
             $fi->setRAvail( $variation['is_in_stock'] ? self::DEFAULT_AVAIL_NUMBER : 0 );
-            $fi->setDimZ($variation['dimensions']['length'] ?: $this->getDimZ() );
+            $fi->setDimZ($variation['dimensions']['width'] ?: $this->getDimZ() );
             $fi->setDimY($variation['dimensions']['height'] ?: $this->getDimY() );
             $fi->setDimX($variation['dimensions']['length'] ?: $this->getDimX() );
             $fi->setWeight($variation['weight'] ?: $this->getWeight() );
