@@ -51,19 +51,27 @@ class Parser extends HtmlParser
                             false !== stripos( $key, 'components' )
                             && false === stripos( $key, 'number of components' )
                         ) {
-                            $value = str_replace( "<br>", ' \n ', $c->getHtml( 'td p' ) );
+                            $value = str_replace( "<br>", " \n ", $c->getHtml( 'td p' ) );
                         }
-                        $this->product_info['attributes'][$key] = $value;
+
+                        if ( false === stripos( $key, 'colors available' ) ) {
+                            $this->product_info['attributes'][$key] = $value;
+                        }
                     }
                 });
         }
 
         if ( $this->exists( '#product-description iframe') ) {
-            $this->product_info['videos'][] = [
-                'name' => $this->getProduct(),
-                'provider' => 'youtube',
-                'video' => $this->getAttr( '#product-description iframe', 'nitro-og-src' )
-            ];
+            $video = $this->getAttr( '#product-description iframe', 'nitro-og-src' )
+                        ?: $this->getAttr( '#product-description iframe', 'src' );
+
+            if ( $video ) {
+                $this->product_info['videos'][] = [
+                    'name' => $this->getProduct(),
+                    'provider' => 'youtube',
+                    'video' => $video
+                ];
+            }
         }
     }
 
@@ -91,7 +99,15 @@ class Parser extends HtmlParser
     {
         return FeedHelper::cleanProductDescription(
             $this->exists( '#product-description' )
-                ? preg_replace( '/<h2\b[^>]*>(.*?)<\/h2>/i', '', $this->getHtml( '#product-description' ) )
+                ? preg_replace(
+                    [
+                        '/<h2\b[^>]*>(.*?)<\/h2>/i',
+                        '/<div\b[^>]+\bclass=[\'\"]et-protected[\'\"][^>]*>(.*?)<\/div>/s',
+                        '/<div\b[^>]+\bclass=[\'\"]et-protected-form[\'\"][^>]*>(.*?)<\/div>/s'
+                    ],
+                    '',
+                    $this->getHtml( '#product-description' )
+                )
                 : $this->getHtml( '.woocommerce-product-details__short-description p' )
         );
     }
