@@ -49,7 +49,7 @@ class Parser extends HtmlParser
                     else {
                         if (
                             false !== stripos( $key, 'components' )
-                            &&  false === stripos( $key, 'number of components' )
+                            && false === stripos( $key, 'number of components' )
                         ) {
                             $value = str_replace( "<br>", ' \n ', $c->getHtml( 'td p' ) );
                         }
