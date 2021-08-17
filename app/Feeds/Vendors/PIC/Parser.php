@@ -121,7 +121,7 @@ class Parser extends HtmlParser
 
     public function getImages(): array
     {
-        return $this->getAttrs( '.woocommerce-product-gallery .woocommerce-product-gallery__wrapper div ', 'data-thumb' );
+        return $this->getAttrs( '[data-large_image]', 'data-large_image' );
     }
 
     public function getAttributes(): ?array
