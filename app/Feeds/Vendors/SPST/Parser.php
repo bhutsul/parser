@@ -106,7 +106,6 @@ class Parser extends HtmlParser
         return $this->product_info['sku'] ?? $this->getText( 'span.sku_wrapper .sku' );
     }
 
-
     public function getDescription(): string
     {
         if ( !$this->exists( '#tab-description' ) ) {
@@ -199,14 +198,14 @@ class Parser extends HtmlParser
             }
 
             $fi->setProduct( $product_name );
-            $fi->setMpn($variation['sku'] . '-' .  $variation['variation_id'] );
+            $fi->setMpn( $variation['sku'] . '-' .  $variation['variation_id'] );
             $fi->setImages( [$variation['image']['url']] );
             $fi->setCostToUs( StringHelper::getMoney( $variation['display_price'] ) );
             $fi->setRAvail( $variation['is_in_stock'] ? self::DEFAULT_AVAIL_NUMBER : 0 );
-            $fi->setDimZ($variation['dimensions']['width'] ?: $this->getDimZ() );
-            $fi->setDimY($variation['dimensions']['height'] ?: $this->getDimY() );
-            $fi->setDimX($variation['dimensions']['length'] ?: $this->getDimX() );
-            $fi->setWeight($variation['weight'] ?: $this->getWeight() );
+            $fi->setDimZ( $variation['dimensions']['width'] ?: $this->getDimZ() );
+            $fi->setDimY( $variation['dimensions']['height'] ?: $this->getDimY() );
+            $fi->setDimX( $variation['dimensions']['length'] ?: $this->getDimX() );
+            $fi->setWeight( $variation['weight'] ?: $this->getWeight() );
 
             $child[] = $fi;
         }
