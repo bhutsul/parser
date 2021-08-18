@@ -11,21 +11,46 @@ use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
 {
-    public const DIMS_REGEX = '/(\d+[\.]?\d*)(?:[\',",″]|[a-z]{2,2})?[\s]?[x,X][\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{2,2})?[\s]?[x,X]?[\s]?(:?\d+[\.]?\d*)?(?:[\',",″]|[a-z]{2,2})?/u';
+    public const DIMS_REGEXES = [
+        '/(\d+[\.]?\d*)(?:[\',",″]|[a-z]{2,2})?[\s]?[x,X][\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{2,2})?[\s]?[x,X]?[\s]?(:?\d+[\.]?\d*)?(?:[\',",″]|[a-z]{2,2})?/u',
+        '/(\d+[\.]?\d*)cm/u',
+        '/(\d+[\.]?\d*)mm/u'
+    ];
+    public const CONTAIN_VALUES = [
+        'mm' => 0.039,
+        'cm' => 0.39,
+        'def' => 1
+    ];
+
     private array $product_info;
 
-    private function getDims( string $val, float $contain_val ): ?array
+    private function getDims( string $val ): ?array
     {
-        $count_dims = count( explode( 'x', $val ) );
+        $val = mb_strtolower( $val );
+
+        if ( substr_count( $val, 'mm' ) ) {
+            $contain_val = self::CONTAIN_VALUES['mm'];
+        }
+        else if ( substr_count( $val, 'cm' ) ) {
+            $contain_val = self::CONTAIN_VALUES['cm'];
+        }
+        else {
+            $contain_val = self::CONTAIN_VALUES['def'];
+        }
+
+        $separator = 'x';
+        if ( in_array( substr_count( $val, '*' ), [1,2] ) ) {
+            $separator = '*';
+        }
+
+        $count_dims = count( explode( $separator, $val ) );
         switch ( $count_dims ) {
             case 1:
                 $dims['x'] = StringHelper::getFloat( $val );
                 break;
             case 2:
-                $dims = FeedHelper::getDimsInString( $val, 'x' );
-                break;
             case 3:
-                $dims = FeedHelper::getDimsInString( $val, 'x', 0, 2, 1 );
+                $dims = FeedHelper::getDimsInString( $val, $separator );
                 break;
         }
 
@@ -52,12 +77,9 @@ class Parser extends HtmlParser
                     false !== stripos( $key, 'large size' )
                     || false !== stripos( $key, 'measures' )
                     || false !== stripos( $key, 'bag size' )
-                    || ( str_starts_with( $key, "Size" ) && substr_count( $val, 'cm' ) )
+                    || str_starts_with( $key, "Size" )
                 ) {
-                    $this->product_info['dims'] = $this->getDims( $val, 0.39 );
-                }
-                else if ( str_starts_with( $key, "Size" ) && substr_count( $val, 'mm' ) ) {
-                    $this->product_info['dims'] = $this->getDims( $val, 0.039 );
+                    $this->product_info['dims'] = $this->getDims( $val );
                 }
                 else if ( false !== stripos( $key, 'weight' ) ) {
                     $this->product_info['weight'] =  FeedHelper::convert( StringHelper::getFloat( $val ), 2.20 ) ;
@@ -67,36 +89,23 @@ class Parser extends HtmlParser
                 }
             }
         }
-        else if (
-            preg_match( self::DIMS_REGEX, $c->text(), $matches )
-            && isset( $matches[1], $matches[0] ) && strlen( $c->text() ) === strlen( $matches[0] )
-        ) {
-            if ( substr_count( $c->text(), 'mm' ) ) {
-                $contain_val = 0.039;
-            }
-            else if ( substr_count( $c->text(), 'cm' ) ) {
-                $contain_val = 0.39;
-            }
-            else {
-                $contain_val = 1;
+        else {
+            $match = false;
+            foreach ( self::DIMS_REGEXES as $regex ) {
+                if (
+                    preg_match( $regex, $c->text(), $matches )
+                    && isset( $matches[1], $matches[0] ) && strlen( $c->text() ) === strlen( $matches[0] )
+                ) {
+                    $this->product_info['dims'] = $this->getDims( $c->text() );
+
+                    $match = true;
+                    break;
+                }
             }
 
-            $this->product_info['dims'] = $this->getDims( $c->text(), $contain_val );
-        }
-        else if (
-            preg_match( '/(\d+[\.]?\d*)cm/u', $c->text(), $matches_cm )
-            && isset( $matches_cm[1], $matches_cm[0] ) && strlen( $c->text() ) === strlen( $matches_cm[0] )
-        ) {
-            $this->product_info['dims'] = $this->getDims( $c->text(), 0.039 );
-        }
-        else if (
-            preg_match( '/(\d+[\.]?\d*)mm/u', $c->text(), $matches_mm )
-            && isset( $matches_mm[1], $matches_mm[0] ) && strlen( $c->text() ) === strlen( $matches_mm[0] )
-        ) {
-            $this->product_info['dims'] = $this->getDims( $c->text(), 0.39 );
-        }
-        else {
-            $this->product_info['shorts'][] = StringHelper::normalizeSpaceInString( $c->text() );
+            if ( $match === false ) {
+                $this->product_info['shorts'][] = StringHelper::normalizeSpaceInString( $c->text() );
+            }
         }
     }
 
