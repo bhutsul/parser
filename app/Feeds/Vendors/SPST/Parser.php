@@ -69,7 +69,7 @@ class Parser extends HtmlParser
         }
         else if (
             preg_match( self::DIMS_REGEX, $c->text(), $matches )
-            && isset( $matches[1] ) && strlen( $c->text() ) === strlen( $matches[0] )
+            && isset( $matches[1], $matches[0] ) && strlen( $c->text() ) === strlen( $matches[0] )
         ) {
             if ( substr_count( $c->text(), 'mm' ) ) {
                 $contain_val = 0.039;
@@ -85,13 +85,13 @@ class Parser extends HtmlParser
         }
         else if (
             preg_match( '/(\d+[\.]?\d*)cm/u', $c->text(), $matches_cm )
-            && isset( $matches_cm[1] ) && strlen( $c->text() ) === strlen( $matches_cm[0] )
+            && isset( $matches_cm[1], $matches_cm[0] ) && strlen( $c->text() ) === strlen( $matches_cm[0] )
         ) {
             $this->product_info['dims'] = $this->getDims( $c->text(), 0.039 );
         }
         else if (
             preg_match( '/(\d+[\.]?\d*)mm/u', $c->text(), $matches_mm )
-            && isset( $matches_mm[1] ) && strlen( $c->text() ) === strlen( $matches_mm[0] )
+            && isset( $matches_mm[1], $matches_mm[0] ) && strlen( $c->text() ) === strlen( $matches_mm[0] )
         ) {
             $this->product_info['dims'] = $this->getDims( $c->text(), 0.39 );
         }
