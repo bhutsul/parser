@@ -87,13 +87,13 @@ class Parser extends HtmlParser
             preg_match( '/(\d+[\.]?\d*)cm/u', $c->text(), $matches_cm )
             && isset( $matches_cm[1], $matches_cm[0] ) && strlen( $c->text() ) === strlen( $matches_cm[0] )
         ) {
-            $this->product_info['dims'] = $this->getDims( $c->text(), 0.039 );
+            $this->product_info['dims'] = $this->getDims( $c->text(), 0.39 );
         }
         else if (
             preg_match( '/(\d+[\.]?\d*)mm/u', $c->text(), $matches_mm )
             && isset( $matches_mm[1], $matches_mm[0] ) && strlen( $c->text() ) === strlen( $matches_mm[0] )
         ) {
-            $this->product_info['dims'] = $this->getDims( $c->text(), 0.39 );
+            $this->product_info['dims'] = $this->getDims( $c->text(), 0.039 );
         }
         else {
             $this->product_info['shorts'][] = StringHelper::normalizeSpaceInString( $c->text() );
