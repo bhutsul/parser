@@ -102,7 +102,6 @@ class Parser extends HtmlParser
                     break;
                 }
             }
-
             if ( $match === false ) {
                 $this->product_info['shorts'][] = StringHelper::normalizeSpaceInString( $c->text() );
             }
