@@ -74,6 +74,10 @@ class Parser extends HtmlParser
             $offer_key = array_search('Offer', array_column($this->product_info['offers'], '@type'), true);
             $this->product_info['offer'] = $this->product_info['offers'][$offer_key];
 
+            $this->product_info['description'] = $this->exists( '#tab-description' )
+                ? preg_replace( ['/<h2\b[^>]*>(.*?)<\/h2>/i',], '', $this->getHtml( '#tab-description' ) )
+                : '';
+
             if ( $this->exists( '.woocommerce-product-details__short-description' ) ) {
                 if ( $this->exists( '.woocommerce-product-details__short-description .block' ) ) {
                     $this->filter( '.woocommerce-product-details__short-description .block span' )
@@ -82,10 +86,22 @@ class Parser extends HtmlParser
                         } );
                 }
                 elseif ( $this->exists( '.woocommerce-product-details__short-description p' ) ) {
-                    $this->filter( '.woocommerce-product-details__short-description p' )
-                        ->each( function ( ParserCrawler $c ) {
+                    $short_desc = $this->filter( '.woocommerce-product-details__short-description p' );
+
+                    if ( $short_desc->count() <= 1 ) {
+                        if ( !$this->product_info['description'] ) {
+                            $this->product_info['description'] = $short_desc->text();
+                        }
+                        else {
+                            $this->product_info['shorts'][] = StringHelper::normalizeSpaceInString( $short_desc->text() );
+                        }
+                    }
+                    else {
+                        $short_desc->each( function ( ParserCrawler $c ) {
                             $this->pushShortsAndAttributesAndDims( $c );
                         } );
+                    }
+
                 }
             }
         }
@@ -108,13 +124,7 @@ class Parser extends HtmlParser
 
     public function getDescription(): string
     {
-        if ( !$this->exists( '#tab-description' ) ) {
-            return '';
-        }
-
-        return FeedHelper::cleanProductDescription(
-            preg_replace( ['/<h2\b[^>]*>(.*?)<\/h2>/i',], '', $this->getHtml( '#tab-description' ) )
-        );
+        return FeedHelper::cleanProductDescription( $this->product_info['description'] ?? '' );
     }
 
     public function getShortDescription(): array
@@ -136,7 +146,20 @@ class Parser extends HtmlParser
 
     public function getCostToUs(): float
     {
-        return StringHelper::getMoney( $this->product_info['offer']['price'] ?? $this->getText( 'div.summary p.price span' ) );
+        return StringHelper::getMoney(
+            $this->product_info['offer']['price']
+                    ?? $this->getText( 'div.summary p.price ins span' )
+                        ?: $this->getText( 'div.summary p.price span' )
+        );
+    }
+
+    public function getListPrice(): ?float
+    {
+        if ( !$this->exists( 'div.summary p.price del' ) ) {
+            return null;
+        }
+
+        return StringHelper::getMoney( $this->getText( 'div.summary p.price del span' ) );
     }
 
     public function getAvail(): ?int
