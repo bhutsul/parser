@@ -43,20 +43,7 @@ class Parser extends HtmlParser
             $separator = '*';
         }
 
-        $count_dims = count( explode( $separator, $val ) );
-        switch ( $count_dims ) {
-            case 1:
-                $dims['x'] = StringHelper::getFloat( $val );
-                break;
-            case 2:
-            case 3:
-                $dims = FeedHelper::getDimsInString( $val, $separator );
-                break;
-        }
-
-        if ( !isset( $dims ) ) {
-            return null;
-        }
+        $dims = FeedHelper::getDimsInString( $val, $separator );
 
         foreach ( $dims as $key => $value ) {
             if ( $value ) {

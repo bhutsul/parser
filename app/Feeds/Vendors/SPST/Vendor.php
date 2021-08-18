@@ -9,7 +9,7 @@ use App\Feeds\Utils\Link;
 class Vendor extends SitemapHttpProcessor
 {
     protected array $first = ['https://splurgdstudio.com/wp-sitemap.xml'];
-
+    
     /**
      * @param FeedItem $fi
      * @return bool
