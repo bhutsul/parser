@@ -11,11 +11,27 @@ use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
 {
+    public const DIMS_REGEX = '/(\d+[\.]?\d*)(?:[\',",″]|[a-z]{2,2})?[\s]?[x,X][\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{2,2})?[\s]?[x,X]?[\s]?(:?\d+[\.]?\d*)?/u';
     private array $product_info;
 
-    private function getDims( string$val, float $contain_val ): array
+    private function getDims( string $val, float $contain_val ): ?array
     {
-        $dims = FeedHelper::getDimsInString($val, 'x', 0, 2, 1);
+        $count_dims = count( explode( 'x', $val ) );
+        switch ( $count_dims ) {
+            case 1:
+                $dims['x'] = StringHelper::getFloat( $val );
+                break;
+            case 2:
+                $dims = FeedHelper::getDimsInString( $val, 'x' );
+                break;
+            case 3:
+                $dims = FeedHelper::getDimsInString( $val, 'x', 0, 2, 1 );
+                break;
+        }
+
+        if ( !isset( $dims ) ) {
+            return null;
+        }
 
         foreach ( $dims as $key => $value ) {
             if ( $value ) {
@@ -36,17 +52,11 @@ class Parser extends HtmlParser
                     false !== stripos( $key, 'large size' )
                     || false !== stripos( $key, 'measures' )
                     || false !== stripos( $key, 'bag size' )
-                    || (
-                        str_starts_with( $key, "Size" )
-                        && substr_count( $val, 'cm' ) >= 2
-                    )
+                    || ( str_starts_with( $key, "Size" ) && substr_count( $val, 'cm' ) )
                 ) {
                     $this->product_info['dims'] = $this->getDims( $val, 0.39 );
                 }
-                else if (
-                    str_starts_with( $key, "Size" )
-                    && substr_count( $val, 'mm' ) >= 2
-                ) {
+                else if ( str_starts_with( $key, "Size" ) && substr_count( $val, 'mm' ) ) {
                     $this->product_info['dims'] = $this->getDims( $val, 0.039 );
                 }
                 else if ( false !== stripos( $key, 'weight' ) ) {
@@ -58,7 +68,28 @@ class Parser extends HtmlParser
             }
         }
         else {
-            $this->product_info['shorts'][] = StringHelper::normalizeSpaceInString( $c->text() );
+            if ( preg_match( self::DIMS_REGEX, $c->text() ) ) {
+                if ( substr_count( $c->text(), 'mm' ) ) {
+                    $contain_val = 0.039;
+                }
+                else if ( substr_count( $c->text(), 'cm' ) ) {
+                    $contain_val = 0.39;
+                }
+                else {
+                    $contain_val = 1;
+                }
+
+                $this->product_info['dims'] = $this->getDims( $c->text(), $contain_val );
+            }
+            else if ( substr_count( $c->text(), 'mm' ) ) {
+                $this->product_info['dims'] = $this->getDims( $c->text(), 0.039 );
+            }
+            else if ( substr_count( $c->text(), 'cm' ) ) {
+                $this->product_info['dims'] = $this->getDims( $c->text(), 0.39 );
+            }
+            else {
+                $this->product_info['shorts'][] = StringHelper::normalizeSpaceInString( $c->text() );
+            }
         }
     }
 
@@ -67,7 +98,7 @@ class Parser extends HtmlParser
      */
     public function beforeParse(): void
     {
-        preg_match( '/<script type="application\/ld\+json">\s*(\{.*?\})\s*<\/script>/s', $this->node->html(), $matches );
+        preg_match( '/<script type="application\/ld\+json">\s*({.*?})\s*<\/script>/s', $this->node->html(), $matches );
         if ( isset( $matches[1] ) ) {
             $this->product_info = json_decode($matches[1], true, 512, JSON_THROW_ON_ERROR);
 
@@ -213,11 +244,10 @@ class Parser extends HtmlParser
             $product_name = '';
 
             foreach ( $variation['attributes'] as $key => $combination ) {
-                $product_name .= $combination;
+                [, $name] = explode( '_', $key );
+                $product_name .= ucfirst( $name ) . ': ' . $combination;
 
-                if ( $key !== array_key_last( $variation['attributes'] ) ) {
-                    $product_name .= '-';
-                }
+                $product_name .= $key !== array_key_last( $variation['attributes'] ) ? '. ' : '.';
             }
 
             $fi->setProduct( $product_name );
