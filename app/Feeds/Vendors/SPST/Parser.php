@@ -119,21 +119,27 @@ class Parser extends HtmlParser
                         } );
                 }
                 elseif ( $this->exists( '.woocommerce-product-details__short-description p' ) ) {
-                    $short_desc = $this->filter( '.woocommerce-product-details__short-description p' );
+                    $short_desc_p = $this->filter( '.woocommerce-product-details__short-description p' );
 
-                    if ( $short_desc->count() <= 1 ) {
+                    if ( $short_desc_p->count() <= 1 ) {
                         if ( !$this->product_info['description'] ) {
-                            $this->product_info['description'] = $short_desc->text();
+                            $this->product_info['description'] = $short_desc_p->text();
                         }
                         else {
-                            $this->product_info['shorts'][] = StringHelper::normalizeSpaceInString( $short_desc->text() );
+                            $this->product_info['shorts'][] = StringHelper::normalizeSpaceInString( $short_desc_p->text() );
                         }
                     }
                     else {
-                        $short_desc->each( function ( ParserCrawler $c ) {
+                        $short_desc_p->each( function ( ParserCrawler $c ) {
                             $this->pushShortsAndAttributesAndDims( $c );
                         } );
                     }
+
+                    $short_desc_div = $this->filter( '.woocommerce-product-details__short-description div' );
+
+                    $short_desc_div->each( function ( ParserCrawler $c ) {
+                        $this->pushShortsAndAttributesAndDims( $c );
+                    } );
 
                 }
             }
@@ -246,8 +252,8 @@ class Parser extends HtmlParser
             $product_name = '';
 
             foreach ( $variation['attributes'] as $key => $combination ) {
-                [, $name] = explode( '_', $key );
-                $product_name .= ucfirst( $name ) . ': ' . $combination;
+                $attribute_key = explode( '_', $key );
+                $product_name .= ucfirst( $attribute_key[array_key_last( $attribute_key )] ) . ': ' . $combination;
 
                 $product_name .= $key !== array_key_last( $variation['attributes'] ) ? '. ' : '.';
             }
