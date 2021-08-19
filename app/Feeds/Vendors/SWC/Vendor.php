@@ -9,6 +9,9 @@ use App\Feeds\Utils\Link;
 class Vendor extends SitemapHttpProcessor
 {
     protected array $first = ['https://www.canadiandisplay.ca/sitemap.xml'];
+//    public array $custom_products = [
+//        'https://www.canadiandisplay.ca/8x8-Telescopic-Stand-W-Green-Screen-Fabric-Print-p/pde11-bgf.htm',
+//    ];
     
 //    /**
 //     * @param FeedItem $fi

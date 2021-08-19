@@ -91,13 +91,81 @@ class Parser extends HtmlParser
             return;
         }
 
-        //validate
-
         $this->product_info['shorts'] = $shorts_and_attributes['short_description'];
 
+        foreach ( $shorts_and_attributes['attributes'] as $key => $value ) {
+            if ( str_starts_with( $key, 'Shipping dimensions' ) ) {
+                if ( preg_match( '/(\d+[\.]?\d*)lbs/u', $value, $matches ) && isset( $matches[1] ) ) {
+                    $this->product_info['shipping_weight'] = StringHelper::getFloat( $matches[1] );
+                    $value = preg_replace( '/(\d+[\.]?\d*)lbs/u', '', $value);
+                }
+                $this->product_info['shipping_dims'] = FeedHelper::getDimsInString($value, 'x');
+            }
+            else if ( str_starts_with( $key, 'Shipping weight' ) ) {
+                $this->product_info['shipping_weight'] = StringHelper::getFloat( $value );
+            }
+            else if ( str_starts_with( $key, 'Depth' ) ) {
+                $this->product_info['dims']['x'] = StringHelper::getFloat( $value );
+            }
+            else if ( str_starts_with( $key, 'Height' ) ) {
+                $this->product_info['dims']['y'] = StringHelper::getFloat( $value );
+            }
+            else if ( str_starts_with( $key, 'Weight' ) ) {
+                $this->product_info['dims']['z'] = StringHelper::getFloat( $value );
+            }
+            else if ( str_starts_with( $key, 'Width' ) ) {
+                $this->product_info['weight'] = StringHelper::getFloat( $value );
+            }
+            else if (
+                str_starts_with( $key, 'Dimensions' )
+                && false === stripos( $key, 'when pressed down on flat surface' )
+            ) {
+                if ( false !== stripos( $key, '(lxwxh)' ) ) {
+                    $this->product_info['dims'] = FeedHelper::getDimsInString($value, 'x', 0, 2, 1);
+                }
+                else {
+                    $this->product_info['dims'] = FeedHelper::getDimsInString($value, 'x');
+                }
+            }
+        }
         $this->product_info['attributes'] = $shorts_and_attributes['attributes'];
     }
 
+    private function buildChildName( array $option_values, array $options ): string
+    {
+        $name = '';
+        foreach ( $option_values as $option_value ) {
+            $name .= $options[$option_value]['name'];
+            $name .= ': ';
+            $name .= trim( $options[$option_value]['value'], '.' );
+            $name .= '. ';
+        }
+
+        return $name;
+    }
+
+    private function buildChildMpn( array $option_values, string $mpn ): string
+    {
+        foreach ( $option_values as $option_value ) {
+            $mpn .= '-';
+            $mpn .= $option_value;
+        }
+
+        return $mpn;
+    }
+
+    private function childClone( FeedItem $parent_fi, array &$child, array $option_values, array $options ): void
+    {
+        $fi = clone $parent_fi;
+
+        $fi->setProduct( $this->buildChildName( $option_values, $options ) );
+        $fi->setCostToUs( $this->getCostToUs() );
+        $fi->setListPrice( $this->getListPrice() );
+        $fi->setRAvail( $this->getAvail() );
+        $fi->setMpn( $this->buildChildMpn( $option_values, $this->getMpn() ) );
+
+        $child[] = $fi;
+    }
 
     public function beforeParse(): void
     {
@@ -112,7 +180,8 @@ class Parser extends HtmlParser
 
     public function isGroup(): bool
     {
-        return $this->exists( '#options_table' );
+        return false;
+//        return $this->exists('#options_table')
     }
 
     public function getProduct(): string
@@ -122,7 +191,7 @@ class Parser extends HtmlParser
 
     public function getMpn(): string
     {
-        return $this->getAttr( 'meta[itemprop="sku"]', 'content' );
+        return $this->getText( 'span.product_code' );
     }
 
     public function getDescription(): string
@@ -155,7 +224,7 @@ class Parser extends HtmlParser
 
     public function getCostToUs(): float
     {
-        return StringHelper::getMoney( $this->getAttr( 'meta[itemprop="price"]', 'content' ) );
+        return StringHelper::getMoney( $this->getAttr( 'span[itemprop="price"]', 'content' ) );
     }
 
     public function getListPrice(): ?float
@@ -174,46 +243,55 @@ class Parser extends HtmlParser
                     : 0;
     }
 
-//    public function getDimX(): ?float
-//    {
-//        return $this->product_info['dims']['x'] ?? null;
-//    }
-//
-//    public function getDimY(): ?float
-//    {
-//        return $this->product_info['dims']['y'] ?? null;
-//    }
-//
-//    public function getDimZ(): ?float
-//    {
-//        return $this->product_info['dims']['z'] ?? null;
-//    }
-//
-//    public function getWeight(): ?float
-//    {
-//        return $this->product_info['weight'] ?? null;
-//    }
+    public function getBrand(): ?string
+    {
+        if ( !$this->exists( 'meta[itemprop="manufacturer"]' ) ) {
+            return null;
+        }
 
-//    public function getShippingDimX(): ?float
-//    {
-//        return $this->product_info['shipping_dims']['x'] ?? null;
-//    }
-//
-//    public function getShippingDimY(): ?float
-//    {
-//        return $this->product_info['shipping_dims']['y'] ?? null;
-//    }
-//
-//    public function getShippingDimZ(): ?float
-//    {
-//        return $this->product_info['shipping_dims']['z'] ?? null;
-//    }
-//
-//    public function getShippingWeight(): ?float
-//    {
-//        return $this->product_info['shipping_weight'] ?? null;
-//    }
-//
+        return $this->getAttr( 'meta[itemprop="manufacturer"]', 'content' );
+    }
+
+    public function getDimX(): ?float
+    {
+        return $this->product_info['dims']['x'] ?? null;
+    }
+
+    public function getDimY(): ?float
+    {
+        return $this->product_info['dims']['y'] ?? null;
+    }
+
+    public function getDimZ(): ?float
+    {
+        return $this->product_info['dims']['z'] ?? null;
+    }
+
+    public function getWeight(): ?float
+    {
+        return $this->product_info['weight'] ?? null;
+    }
+
+    public function getShippingDimX(): ?float
+    {
+        return $this->product_info['shipping_dims']['x'] ?? null;
+    }
+
+    public function getShippingDimY(): ?float
+    {
+        return $this->product_info['shipping_dims']['y'] ?? null;
+    }
+
+    public function getShippingDimZ(): ?float
+    {
+        return $this->product_info['shipping_dims']['z'] ?? null;
+    }
+
+    public function getShippingWeight(): ?float
+    {
+        return $this->product_info['shipping_weight'] ?? null;
+    }
+
     public function getVideos(): array
     {
         return $this->product_info['videos'] ?? [];
@@ -230,7 +308,35 @@ class Parser extends HtmlParser
     public function getChildProducts( FeedItem $parent_fi ): array
     {
         $child = [];
+        $options = [];
+        $option_groups = [];
 
+        $this->filter( '#options_table select')
+            ->each( function ( ParserCrawler $select ) use ( &$options, &$option_groups ) {
+                $option_values = [];
+
+                $select->filter( 'option' )
+                    ->each( function ( ParserCrawler $option ) use ( &$options, &$option_values, $select ) {
+                        $options[$option->attr( 'value' )] = [
+                            'name' => $select->attr( 'title' ),
+                            'value' => $option->text(),
+                        ];
+
+                        $option_values[] = $option->attr( 'value' );
+                    });
+                $option_groups[] = $option_values;
+            });
+
+        if ( count( $option_groups ) === 1 ) {
+            $this->childClone( $parent_fi, $child, $option_groups[0], $options );
+        }
+        else {
+            $combination_of_groups = $this->combinations( $option_groups );
+
+            foreach ( $combination_of_groups as $option_values ) {
+                $this->childClone( $parent_fi, $child, $option_values, $options );
+            }
+        }
 
         return $child;
     }
