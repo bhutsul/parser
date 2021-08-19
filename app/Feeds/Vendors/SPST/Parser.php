@@ -203,10 +203,10 @@ class Parser extends HtmlParser
 
     public function getAvail(): ?int
     {
-        if ( !isset( $this->product_info['offer']['price'] ) ) {
+        if ( !isset( $this->product_info['offer']['availability'] ) ) {
             return 0;
         }
-        return $this->product_info['offer']['price'] === 'http://schema.org/InStock'
+        return $this->product_info['offer']['availability'] === 'http://schema.org/InStock'
                     ? self::DEFAULT_AVAIL_NUMBER
                     : 0;
     }
@@ -258,8 +258,12 @@ class Parser extends HtmlParser
                 $product_name .= $key !== array_key_last( $variation['attributes'] ) ? '. ' : '.';
             }
 
+            $sku = $variation['sku']
+                        ? $variation['sku'] . '-' .  $variation['variation_id']
+                        : $variation['variation_id'];
+
             $fi->setProduct( $product_name );
-            $fi->setMpn( $variation['sku'] . '-' .  $variation['variation_id'] );
+            $fi->setMpn( $sku );
             $fi->setImages( [$variation['image']['url']] );
             $fi->setCostToUs( StringHelper::getMoney( $variation['display_price'] ) );
             $fi->setRAvail( $variation['is_in_stock'] ? self::DEFAULT_AVAIL_NUMBER : 0 );
