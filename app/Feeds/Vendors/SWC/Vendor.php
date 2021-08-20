@@ -9,6 +9,11 @@ use App\Feeds\Utils\Link;
 class Vendor extends SitemapHttpProcessor
 {
     protected array $first = ['https://www.canadiandisplay.ca/sitemap.xml'];
+    public array $custom_products = [
+        'https://www.canadiandisplay.ca/Wall-Mount-Vinyl-Rack-54-Width-p/bvr54.htm',
+//        'https://www.canadiandisplay.ca/Custom-Acrylic-Plaque-Lobby-Sign-Kit-p/dllsk03.htm',
+    ];
+//    protected ?int $max_products = 300;
     
 //    /**
 //     * @param FeedItem $fi
