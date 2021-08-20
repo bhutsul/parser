@@ -12,5 +12,5 @@
 */
 
 Route::get('/', function () {
-    return \Illuminate\Support\Facades\Artisan::call('feed SWC');
+    return view('welcome');
 });

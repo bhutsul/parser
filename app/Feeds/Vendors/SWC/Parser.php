@@ -294,7 +294,6 @@ class Parser extends HtmlParser
     public function isGroup(): bool
     {
         return $this->exists('#options_table');
-//        return false;
     }
 
     public function getProduct(): string
