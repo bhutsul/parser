@@ -15,15 +15,13 @@ class FeedHelper
     {
         if ( !empty( $description ) ) {
             $description = self::cleanProductData( $description );
+            $description = StringHelper::cutTagsAttributes( $description );
             $description = str_replace( [ '<br>', '<div>', '</div>' ], [ "\n", '<p>', '</p>' ], html_entity_decode( $description ) );
             $crawler = new ParserCrawler( $description );
             if ( $crawler->filter( 'body' )->count() ) {
                 /** Removes empty tags from the product description **/
                 $description = $crawler->filter( 'body' )->html();
-                $description = preg_replace( '/<\w+>(\s+)?<\/\w+>/', '', StringHelper::cutTags( $description ) );
-                if ( preg_match( '/<\w+>(\s+)?<\/\w+>/', $description ) ) {
-                    $description = self::cleanProductDescription( $description );
-                }
+                $description = StringHelper::cutEmptyTags( StringHelper::cutTags( $description ) );
             }
         }
         return StringHelper::normalizeSpaceInString( $description );

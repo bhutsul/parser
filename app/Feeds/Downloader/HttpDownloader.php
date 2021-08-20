@@ -62,6 +62,11 @@ class HttpDownloader
      */
     private bool $connect = false;
     /**
+     * @var bool Flag that is responsible for additional processing of links that have errors when loading
+     * By default, links with an error are processed
+     */
+    private bool $process_errors_links = true;
+    /**
      * @var int Defines the waiting time for processing the request in seconds
      */
     public int $timeout_s;
@@ -90,6 +95,14 @@ class HttpDownloader
     public function setStaticUserAgent( bool $static_agent ): void
     {
         $this->static_user_agent = $static_agent;
+    }
+
+    /**
+     * @return bool
+     */
+    public function getStaticUserAgent(): bool
+    {
+        return $this->static_user_agent;
     }
 
     /**
@@ -182,20 +195,21 @@ class HttpDownloader
                             if ( $response = $exception->getResponse() ) {
                                 $status = $response->getStatusCode();
                                 if ( $status === 403 || $status === 430 ) {
-                                    if ( $this->use_proxy ) {
+                                    if ( $this->use_proxy || $this->process_errors_links ) {
                                         $this->connect = false;
+
+                                        $errors_links[] = $this->prepareErrorLinks( $link, 3 );
                                     }
-                                    $errors_links[] = $this->prepareErrorLinks( $link, 5 );
                                 }
-                                elseif ( $status >= 500 ) {
+                                elseif ( $status >= 500 && $this->process_errors_links ) {
                                     $errors_links[] = $this->prepareErrorLinks( $link, 0 );
                                 }
                                 elseif ( in_array( $status, [ 200, 404 ] ) ) {
-                                    $data = $this->prepareRequestData( new Data( $response->getBody()->getContents() ), $link, $assoc, $data );
+                                    $data = $this->prepareRequestData( new Data( $response->getBody()->getContents(), $status ), $link, $assoc, $data );
                                 }
                                 else {
                                     $this->printParseError( $link, $exception );
-                                    $data = $this->prepareRequestData( new Data( $response->getBody()->getContents() ), $link, $assoc, $data );
+                                    $data = $this->prepareRequestData( new Data( $response->getBody()->getContents(), $status ), $link, $assoc, $data );
                                 }
                             }
                             else if ( $this->use_proxy ) {
@@ -461,6 +475,14 @@ class HttpDownloader
             $data[ $link->getUrl() ] = $response_body ?? new Data();
         }
         return $data;
+    }
+
+    /**
+     * @param bool $process
+     */
+    public function setProcessErrorsLinks( bool $process ): void
+    {
+        $this->process_errors_links = $process;
     }
 
     /**

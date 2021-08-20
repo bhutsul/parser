@@ -30,6 +30,126 @@ class StringHelper
     }
 
     /**
+     * Brings the json string to a valid form, by escaping double quotes in the text
+     * @param string $string
+     * @return string
+     */
+    public static function normalizeJsonString( string $string ): string
+    {
+        $string = stripslashes( self::removeSpaces( self::cutTagsAttributes( $string ) ) );
+        $string = str_replace( [ 'true', 'false', 'null' ], [ '"true"', '"false"', '"null"' ], $string );
+        $clear_string = '';
+
+        $symbols_in_string = preg_split( "//u", $string, -1, PREG_SPLIT_NO_EMPTY );
+        foreach ( $symbols_in_string as $key => $symbol ) {
+
+            /** Is the opening quote in the key or value in the json string **/
+            $is_left = true;
+
+            /** Is the closing quotation mark in the key or value in the json string **/
+            $is_right = true;
+
+            if ( $symbol === '"' ) {
+
+                /** Getting the first character to the left of the quotation mark **/
+                $symbol_before_quote = $symbols_in_string[ $key - 1 ];
+
+                /** If the character is a number, the quotation mark can be a pointer to the unit of measurement (inch) **/
+                if ( is_numeric( $symbol_before_quote ) ) {
+                    $is_left = false;
+                }
+
+                /** If the character is a space or a comma, we get the next character before it **/
+                if ( $symbol_before_quote === ' ' ) {
+                    $symbol_before_quote = $symbols_in_string[ $key - 2 ];
+                    if ( $symbol_before_quote === ',' ) {
+                        $symbol_before_quote = $symbols_in_string[ $key - 3 ];
+                        if ( $symbol_before_quote === ' ' ) {
+                            $symbol_before_quote = $symbols_in_string[ $key - 4 ];
+                        }
+                    }
+                }
+                elseif ( $symbol_before_quote === ',' ) {
+                    $symbol_before_quote = $symbols_in_string[ $key - 2 ];
+                    if ( $symbol_before_quote === ' ' ) {
+                        $symbol_before_quote = $symbols_in_string[ $key - 3 ];
+                    }
+                }
+
+                if ( !is_numeric( $symbol_before_quote ) && !in_array( $symbol_before_quote, [ '[', '{', ':', '"', '}', ']' ] ) ) {
+                    $is_left = false;
+                }
+
+                /** Getting the first character to the right of the quotation mark **/
+                $symbol_after_quote = $symbols_in_string[ $key + 1 ];
+
+                /** If the character is a space or a comma, we get the next character after it **/
+                if ( $symbol_after_quote === ' ' ) {
+                    $symbol_after_quote = $symbols_in_string[ $key + 2 ];
+                    if ( $symbol_after_quote === ',' ) {
+                        $symbol_after_quote = $symbols_in_string[ $key + 3 ];
+                        if ( $symbol_after_quote === ' ' ) {
+                            $symbol_after_quote = $symbols_in_string[ $key + 4 ];
+                        }
+                    }
+                }
+                elseif ( $symbol_after_quote === ',' ) {
+                    $symbol_after_quote = $symbols_in_string[ $key + 2 ];
+                    if ( $symbol_after_quote === ' ' ) {
+                        $symbol_after_quote = $symbols_in_string[ $key + 3 ];
+                    }
+                }
+
+                /** If the character is a quotation mark, and the current quotation mark is the opening one, we are looking for the next quotation mark in the string **/
+                if ( $symbol_after_quote === '"' && $is_right ) {
+                    foreach ( $symbols_in_string as $sub_key => $sub_symbol ) {
+
+                        /** If the character is a quotation mark and its index in the string is greater than the index of the last found quotation mark, we start processing it **/
+                        if ( $sub_key > $key + 4 && $sub_symbol === '"' ) {
+
+                            /** Getting the first character to the right of the quotation mark **/
+                            $symbol_after_quote = $symbols_in_string[ $sub_key + 1 ];
+
+                            /** If the character is a space or a comma, we get the next character after it **/
+                            if ( $symbol_after_quote === ' ' ) {
+                                $symbol_after_quote = $symbols_in_string[ $sub_key + 2 ];
+                                if ( $symbol_after_quote === ',' ) {
+                                    $symbol_after_quote = $symbols_in_string[ $sub_key + 3 ];
+                                    if ( $symbol_after_quote === ' ' ) {
+                                        $symbol_after_quote = $symbols_in_string[ $sub_key + 4 ];
+                                    }
+                                }
+                            }
+                            elseif ( $symbol_after_quote === ',' ) {
+                                $symbol_after_quote = $symbols_in_string[ $sub_key + 2 ];
+                                if ( $symbol_after_quote === ' ' ) {
+                                    $symbol_after_quote = $symbols_in_string[ $sub_key + 3 ];
+                                }
+                            }
+
+                            /** After the first condition is met, we exit the loop so as not to iterate through all the characters to the end of the line **/
+                            break;
+                        }
+                    }
+                }
+
+                if ( !in_array( $symbol_after_quote, [ ':', '"', '}', ']' ] ) ) {
+                    $is_right = false;
+                }
+
+                /** If the quotation mark is neither opening nor closing, we escape it **/
+                if ( !$is_left && !$is_right ) {
+                    $symbols_in_string[ $key ] = "\\$symbol";
+                }
+            }
+
+            $clear_string .= $symbols_in_string[ $key ];
+        }
+
+        return str_replace( [ '"true"', '"false"', '"null"' ], [ 'true', 'false', 'null' ], $clear_string );
+    }
+
+    /**
      * Splits the text into paragraphs according to the specified number of sentences, if the source text does not contain html tags
      * @param string $string Text without html tags
      * @param int $size Number of sentences in one paragraph
@@ -61,6 +181,103 @@ class StringHelper
         }
         return !empty( preg_replace( '/\s+/', '', self::removeSpaces( $string ) ) );
     }
+
+    /**
+     * Cuts out block tags and hyperlink tags with their contents, clearing the remaining tags from all attributes.
+     * @param string $string
+     * @param bool $flag
+     * @param array $tags
+     * @return null|string
+     */
+    public static function cutTags( string $string, bool $flag = true, array $tags = [] ): ?string
+    {
+        $mass = [
+            'span',
+            'p',
+            'br',
+            'ol',
+            'ul',
+            'li',
+            'table',
+            'thead',
+            'tbody',
+            'th',
+            'tr',
+            'td',
+        ];
+
+        $regexps = [
+            '/<script[^>]*?>.*?<\/script>/i',
+            '/<noscript[^>]*?>.*?<\/noscript>/i',
+            '/<style[^>]*?>.*?<\/style>/i',
+            '/<video[^>]*?>.*?<\/video>/i',
+            '/<a[^>]*?>.*?<\/a>/i',
+            '/<iframe[^>]*?>.*?<\/iframe>/i'
+        ];
+        foreach ( $regexps as $regexp ) {
+            if ( preg_match( $regexp, $string ) ) {
+                $string = (string)preg_replace( $regexp, '', $string );
+            }
+        }
+
+        $string = (string)self::mb_trim( $string );
+        if ( !$flag ) {
+            $mass = [];
+        }
+
+        if ( !empty( $tags ) && is_array( $tags ) ) {
+            foreach ( $tags as $tag ) {
+                $regexp = '/<(\D+)\s?[^>]*?>/';
+                if ( preg_match( $regexp, $tag, $matches ) ) {
+                    $mass[] = $matches[ 1 ];
+                }
+                else {
+                    $mass[] = $tag;
+                }
+            }
+        }
+
+        $tags_string = '';
+        foreach ( $mass as $tag ) {
+            $tags_string .= "<$tag>";
+        }
+
+        $string = strip_tags( $string, $tags_string );
+        foreach ( $mass as $tag ) {
+
+            $regexp = "/(<$tag)([^>]*)(>)/i";
+
+            if ( preg_match( $regexp, $string ) ) {
+                $string = (string)preg_replace( $regexp, '$1$3', $string );
+            }
+        }
+        return $string;
+    }
+
+    /**
+     * Cuts out all tag attributes
+     * @param string $string
+     * @return string
+     */
+    public static function cutTagsAttributes( string $string ): string
+    {
+        return preg_replace( '/(<[a-z]+)([^>]*)(>)/i', '$1$3', $string );
+    }
+
+    /**
+     * Cuts out empty tags
+     * @param string $string
+     * @return string
+     */
+    public static function cutEmptyTags( string $string ): string
+    {
+        $string = preg_replace( '/<\w+>(\s+)?<\/\w+>/', '', $string );
+        if ( preg_match( '/<\w+>(\s+)?<\/\w+>/', $string ) ) {
+            $string = self::cutEmptyTags( $string );
+        }
+        return $string;
+    }
+
 
     public static function mb_ucfirst( $string, $encoding = 'UTF-8' ): string
     {
@@ -253,81 +470,5 @@ class StringHelper
         return $cleared_link;
     }
 
-    public static function cutTagsAttributes( string $string ): string
-    {
-        return preg_replace( '/(<[a-z]+)([^>]*)(>)/i', '$1$3', $string );
-    }
 
-    /**
-     * Cuts tags from the description, leaving the allowed tags, clearing them of styles
-     *
-     * @param string $full_desc
-     * @param bool $flag
-     * @param array $tags
-     * @return null|string
-     */
-    public static function cutTags( string $full_desc, bool $flag = true, array $tags = [] ): ?string
-    {
-        $mass = [
-            'span',
-            'p',
-            'br',
-            'ol',
-            'ul',
-            'li',
-            'table',
-            'thead',
-            'tbody',
-            'th',
-            'tr',
-            'td',
-        ];
-
-        $regexps = [
-            '/<script[^>]*?>.*?<\/script>/i',
-            '/<noscript[^>]*?>.*?<\/noscript>/i',
-            '/<style[^>]*?>.*?<\/style>/i',
-            '/<video[^>]*?>.*?<\/video>/i',
-            '/<a[^>]*?>.*?<\/a>/i',
-            '/<iframe[^>]*?>.*?<\/iframe>/i'
-        ];
-        foreach ( $regexps as $regexp ) {
-            if ( preg_match( $regexp, $full_desc ) ) {
-                $full_desc = (string)preg_replace( $regexp, '', $full_desc );
-            }
-        }
-
-        $full_desc = (string)self::mb_trim( $full_desc );
-        if ( !$flag ) {
-            $mass = [];
-        }
-
-        if ( !empty( $tags ) && is_array( $tags ) ) {
-            foreach ( $tags as $tag ) {
-                $regexp = '/<(\D+)\s?[^>]*?>/';
-                if ( preg_match( $regexp, $tag, $matches ) ) {
-                    $mass[] = $matches[ 1 ];
-                }
-                else {
-                    $mass[] = $tag;
-                }
-            }
-        }
-
-        $tags_string = '';
-        foreach ( $mass as $tag ) {
-            $tags_string .= "<$tag>";
-        }
-
-        $full_desc = strip_tags( $full_desc, $tags_string );
-        foreach ( $mass as $tag ) {
-
-            $regexp = "/(<$tag)([^>]*)(>)/i";
-
-            if ( preg_match( $regexp, $full_desc ) ) {
-                $full_desc = (string)preg_replace( $regexp, '$1$3', $full_desc );
-            }
-        }
-        return $full_desc;
-    }
 }
