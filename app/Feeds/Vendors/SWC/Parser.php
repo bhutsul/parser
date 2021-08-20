@@ -177,7 +177,7 @@ class Parser extends HtmlParser
                     $this->product_info['shipping_weight'] = StringHelper::getFloat( $matches[1] );
                     $value = preg_replace( self::WEIGHT_FROM_SHIPPING_DIMS, '', $value);
                 }
-                $this->product_info['shipping_dims'] = FeedHelper::getDimsInString($value, 'x');
+                $this->product_info['shipping_dims'] = FeedHelper::getDimsInString( $value, 'x' );
             }
             else if ( str_starts_with( $key, 'Shipping weight' ) || str_starts_with( $key, 'Shipping Weight' ) ) {
                 $this->product_info['shipping_weight'] = StringHelper::getFloat( $value );
@@ -200,7 +200,7 @@ class Parser extends HtmlParser
                 str_starts_with( $key, 'Dimensions' )
                 && false === stripos( $key, 'when pressed down on flat surface' )
             ) {
-                if ( false !==str_contains( $value, '-' ) ) {
+                if ( false !== str_contains( $value, '-' ) ) {
                     $value = str_replace("-", ' ', $value);
                 }
                 if ( false !== stripos( $key, '(lxwxh)' ) ) {
