@@ -324,6 +324,11 @@ class Parser extends HtmlParser
         return FeedHelper::cleanShortDescription( $this->product_info['shorts'] );
     }
 
+    public function getCategories(): array
+    {
+        return array_values( array_slice( $this->getContent( '.vCSS_breadcrumb_td a' ), 1 ) );
+    }
+
     public function getImages(): array
     {
         $images = array_map( static fn($image) => 'https:' . $image , $this->getAttrs( '#altviews a', 'href' ) );
