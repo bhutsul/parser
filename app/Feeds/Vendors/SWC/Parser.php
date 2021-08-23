@@ -128,7 +128,7 @@ class Parser extends HtmlParser
                     $this->product_info['videos'][] = [
                         'name' => $c->getText( '.video_description' ) ? :$this->getProduct(),
                         'provider' => 'youtube',
-                        'video' => ltrim( $c->getAttr(  'iframe','src' ), '//' )
+                        'video' => 'https://' . ltrim( $c->getAttr(  'iframe','src' ), '//' )
                     ];
                 });
         }
@@ -188,7 +188,10 @@ class Parser extends HtmlParser
             else if ( str_starts_with( $key, 'Height' ) ) {
                 $this->product_info['dims']['y'] = StringHelper::getFloat( $value );
             }
-            else if ( str_starts_with( $key, 'Weight' ) || str_starts_with( $key, 'Weighs' ) ) {
+            else if (
+                ( false === stripos($value, 'per square yard')
+                    && str_starts_with($key, 'Weigh') )
+            ) {
                 $this->product_info['weight'] = false !== stripos( $value, "oz" )
                     ? FeedHelper::convertLbsFromOz( StringHelper::getFloat( $value ) )
                     : StringHelper::getFloat( $value );
