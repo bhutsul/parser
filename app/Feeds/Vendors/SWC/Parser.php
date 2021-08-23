@@ -72,11 +72,11 @@ class Parser extends HtmlParser
                     }
                     $this->product_info['shipping_dims'] = FeedHelper::getDimsInString($shipping[0], 'x');
                 }
-                if ( preg_match( self::DIMS_REGEXES['shipping_weight'], $text, $shipping_weight) ) {
+                else if ( preg_match( self::DIMS_REGEXES['shipping_weight'], $text, $shipping_weight) ) {
                     $this->product_info['shipping_weight'] = StringHelper::getFloat( $shipping_weight[1] );
                 }
 
-                if (
+                elseif (
                     preg_match( self::DIMS_REGEXES['dims'], $text, $dims )
                     && isset( $dims[1], $dims[0] ) && strlen( $c->text() ) === strlen( $dims[0] )
                 ) {
@@ -95,13 +95,14 @@ class Parser extends HtmlParser
                     $this->product_info['dims']['z'] = StringHelper::getFloat( $width[1] );
                 }
 
-                if ( preg_match( self::DIMS_REGEXES['weight'], $text, $weight) ) {
+                else if ( preg_match( self::DIMS_REGEXES['weight'], $text, $weight) ) {
                     $this->product_info['weight'] = false !== stripos( $weight[1], "oz")
                         ? FeedHelper::convertLbsFromOz( StringHelper::getFloat( $weight[1] ) )
                         : StringHelper::getFloat( $weight[1] );
                 }
-
-                $short_description[] = $text;
+                else {
+                    $short_description[] = $text;
+                }
             }
         } );
 
@@ -254,8 +255,7 @@ class Parser extends HtmlParser
     {
         $name .= $option['name'];
         $name .= ': ';
-        $name .= trim( $option['value'], '.' );
-        $name .= '. ';
+        $name .= $option['value'];
     }
 
     private function childClone( FeedItem $parent_fi, array &$child, string $name, string $mpn, int|float $price): void

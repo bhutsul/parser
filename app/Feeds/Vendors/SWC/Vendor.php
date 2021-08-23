@@ -9,7 +9,7 @@ use App\Feeds\Utils\Link;
 class Vendor extends SitemapHttpProcessor
 {
     protected array $first = ['https://www.canadiandisplay.ca/sitemap.xml'];
-    
+
     /**
      * @param FeedItem $fi
      * @return bool
