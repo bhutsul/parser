@@ -64,45 +64,42 @@ class Parser extends HtmlParser
                     $attributes[ trim( $key ) ] = trim( StringHelper::normalizeSpaceInString( $value ) );
                 }
             }
-            else {
-                if ( preg_match( self::DIMS_REGEXES['shipping'], $text, $shipping ) ) {
-                    if ( preg_match( self::WEIGHT_FROM_SHIPPING_DIMS, $shipping[0], $shipping_weight ) && isset( $shipping_weight[1] ) ) {
-                        $this->product_info['shipping_weight'] = StringHelper::getFloat( $shipping_weight[1] );
-                        $shipping[0] = preg_replace( self::WEIGHT_FROM_SHIPPING_DIMS, '', $shipping[0]);
-                    }
-                    $this->product_info['shipping_dims'] = FeedHelper::getDimsInString($shipping[0], 'x');
-                }
-                else if ( preg_match( self::DIMS_REGEXES['shipping_weight'], $text, $shipping_weight) ) {
+            else if ( preg_match( self::DIMS_REGEXES['shipping'], $text, $shipping ) ) {
+                if ( preg_match( self::WEIGHT_FROM_SHIPPING_DIMS, $shipping[0], $shipping_weight ) && isset( $shipping_weight[1] ) ) {
                     $this->product_info['shipping_weight'] = StringHelper::getFloat( $shipping_weight[1] );
+                    $shipping[0] = preg_replace( self::WEIGHT_FROM_SHIPPING_DIMS, '', $shipping[0]);
                 }
+                $this->product_info['shipping_dims'] = FeedHelper::getDimsInString($shipping[0], 'x');
+            }
+            else if ( preg_match( self::DIMS_REGEXES['shipping_weight'], $text, $shipping_weight) ) {
+                $this->product_info['shipping_weight'] = StringHelper::getFloat( $shipping_weight[1] );
+            }
+            else if (
+                preg_match( self::DIMS_REGEXES['dims'], $text, $dims )
+                && isset( $dims[1], $dims[0] ) && strlen( $c->text() ) === strlen( $dims[0] )
+            ) {
+                $this->product_info['dims'] = FeedHelper::getDimsInString($dims[0], 'x');
+            }
+            else if ( str_starts_with( $text, 'Measures' ) ) {
+                $this->product_info['dims'] = FeedHelper::getDimsInString($text, 'x');
+            }
+            else if ( preg_match( self::DIMS_REGEXES['depth'], $text, $depth) ) {
+                $this->product_info['dims']['x'] = StringHelper::getFloat( $depth[1] );
+            }
+            else if ( preg_match( self::DIMS_REGEXES['height'], $text, $height) ) {
+                $this->product_info['dims']['y'] = StringHelper::getFloat( $height[1] );
+            }
+            else if ( preg_match( self::DIMS_REGEXES['width'], $text, $width) ) {
+                $this->product_info['dims']['z'] = StringHelper::getFloat( $width[1] );
+            }
 
-                elseif (
-                    preg_match( self::DIMS_REGEXES['dims'], $text, $dims )
-                    && isset( $dims[1], $dims[0] ) && strlen( $c->text() ) === strlen( $dims[0] )
-                ) {
-                    $this->product_info['dims'] = FeedHelper::getDimsInString($dims[0], 'x');
-                }
-                else if ( str_starts_with( $text, 'Measures' ) ) {
-                    $this->product_info['dims'] = FeedHelper::getDimsInString($text, 'x');
-                }
-                else if ( preg_match( self::DIMS_REGEXES['depth'], $text, $depth) ) {
-                    $this->product_info['dims']['x'] = StringHelper::getFloat( $depth[1] );
-                }
-                else if ( preg_match( self::DIMS_REGEXES['height'], $text, $height) ) {
-                    $this->product_info['dims']['y'] = StringHelper::getFloat( $height[1] );
-                }
-                else if ( preg_match( self::DIMS_REGEXES['width'], $text, $width) ) {
-                    $this->product_info['dims']['z'] = StringHelper::getFloat( $width[1] );
-                }
-
-                else if ( preg_match( self::DIMS_REGEXES['weight'], $text, $weight) ) {
-                    $this->product_info['weight'] = false !== stripos( $weight[1], "oz")
-                        ? FeedHelper::convertLbsFromOz( StringHelper::getFloat( $weight[1] ) )
-                        : StringHelper::getFloat( $weight[1] );
-                }
-                else {
-                    $short_description[] = $text;
-                }
+            else if ( preg_match( self::DIMS_REGEXES['weight'], $text, $weight) ) {
+                $this->product_info['weight'] = false !== stripos( $weight[1], "oz")
+                    ? FeedHelper::convertLbsFromOz( StringHelper::getFloat( $weight[1] ) )
+                    : StringHelper::getFloat( $weight[1] );
+            }
+            else {
+                $short_description[] = $text;
             }
         } );
 
