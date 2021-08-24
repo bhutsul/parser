@@ -30,6 +30,7 @@ class Parser extends HtmlParser
         'width' => '/Width[:]?[\s]?(\d+[\.]?\d*)/',
         'dims' => '/(\d+[\.]?\d*)(?:[\',",″]|[a-z]{2,2})?[\s]?[x,X][\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{2,2})?[\s]?[x,X]?[\s]?(:?\d+[\.]?\d*)?(?:[\',",″]|[a-z]{2,2})/i',
         'HDW' => '/(\d+[\.]?\d*)[\',",″]?[\s]?\(H\)[\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[\',",″]?[\s]?\(D\)[\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[\',",″]?[\s]?\(W\)/i',
+        'LWH' => '/(\d+[\.]?\d*)[\',",″]?[\s]?\(L\)[\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[\',",″]?[\s]?\(W\)[\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[\',",″]?[\s]?\(H\)/i',
     ];
 
     private array $product_info;
@@ -267,13 +268,14 @@ class Parser extends HtmlParser
                     || str_starts_with( $key, 'Dimensions' )
                     || str_starts_with( $key, 'Overall size' )
                     || str_starts_with( $key, 'Overall Size' )
+                    || str_starts_with( $key, 'Size' )
                 )
             ) {
                 if ( false !== str_contains( $value, '-' ) ) {
                     $value = str_replace( "-", ' ', $value );
                 }
-                if ( false !== stripos( $key, '(lxwxh)' ) ) {
-                    $this->product_info['dims'] = FeedHelper::getDimsInString( $value, 'x', 0, 2, 1 );
+                if ( false !== stripos( $key, '(lxwxh)' ) || preg_match( self::DIMS_REGEXES['LWH'], $value ) ) {
+                    $this->product_info['dims'] = FeedHelper::getDimsInString( $value, 'x',  1, 2, 0 );
                 }
                 else {
                     $this->product_info['dims'] = FeedHelper::getDimsInString( $value, 'x' );
