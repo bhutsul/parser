@@ -67,7 +67,7 @@ class Parser extends HtmlParser
             $text = $c->text();
             if ( str_contains( $text, ':' ) && substr_count( $text, ':' ) === 1 ) {
                 [ $key, $value ] = explode( ':', $text, 2 );
-                if ( !$value && false === stripos( $text,'Display dimensions' )) {
+                if ( !$value && false === stripos( $text,'Display dimensions' ) ) {
                     $short_description[] = $text;
                 }
                 else {
@@ -77,9 +77,9 @@ class Parser extends HtmlParser
             else if ( preg_match( self::DIMS_REGEXES['shipping'], $text, $shipping ) ) {
                 if ( preg_match( self::WEIGHT_FROM_SHIPPING_DIMS, $text, $shipping_weight ) && isset( $shipping_weight[1] ) ) {
                     $this->product_info['shipping_weight'] = StringHelper::getFloat( $shipping_weight[1] );
-                    $shipping[0] = preg_replace( self::WEIGHT_FROM_SHIPPING_DIMS, '', $shipping[0]);
+                    $shipping[0] = preg_replace( self::WEIGHT_FROM_SHIPPING_DIMS, '', $shipping[0] );
                 }
-                $this->product_info['shipping_dims'] = FeedHelper::getDimsInString($shipping[0], 'x');
+                $this->product_info['shipping_dims'] = FeedHelper::getDimsInString( $shipping[0], 'x' );
             }
             else if ( preg_match( self::DIMS_REGEXES['shipping_weight'], $text, $shipping_weight) ) {
                 $this->product_info['shipping_weight'] = StringHelper::getFloat( $shipping_weight[1] );
@@ -88,7 +88,7 @@ class Parser extends HtmlParser
                 preg_match( self::DIMS_REGEXES['dims'], $text, $dims )
                 && isset( $dims[1], $dims[0] ) && strlen( $c->text() ) === strlen( $dims[0] )
             ) {
-                $this->product_info['dims'] = FeedHelper::getDimsInString($dims[0], 'x');
+                $this->product_info['dims'] = FeedHelper::getDimsInString( $dims[0], 'x' );
             }
             else if (
                 preg_match( self::DIMS_REGEXES['HDW'], $text, $hdw )
@@ -108,8 +108,8 @@ class Parser extends HtmlParser
             else if ( preg_match( self::DIMS_REGEXES['width'], $text, $width) ) {
                 $this->product_info['dims']['x'] = StringHelper::getFloat( $width[1] );
             }
-            else if ( preg_match( self::DIMS_REGEXES['weight'], $text, $weight) ) {
-                $this->product_info['weight'] = false !== stripos( $weight[1], "oz")
+            else if ( preg_match( self::DIMS_REGEXES['weight'], $text, $weight ) ) {
+                $this->product_info['weight'] = false !== stripos( $weight[1], "oz" )
                     ? FeedHelper::convertLbsFromOz( StringHelper::getFloat( $weight[1] ) )
                     : StringHelper::getFloat( $weight[1] );
             }
@@ -228,7 +228,7 @@ class Parser extends HtmlParser
             ) {
                 if ( preg_match( self::WEIGHT_FROM_SHIPPING_DIMS, $value, $matches ) && isset( $matches[1] ) ) {
                     $this->product_info['shipping_weight'] = StringHelper::getFloat( $matches[1] );
-                    $value = preg_replace( self::WEIGHT_FROM_SHIPPING_DIMS, '', $value);
+                    $value = preg_replace( self::WEIGHT_FROM_SHIPPING_DIMS, '', $value );
                 }
                 $this->product_info['shipping_dims'] = FeedHelper::getDimsInString( $value, 'x' );
 
