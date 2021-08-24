@@ -106,8 +106,11 @@ class Parser extends HtmlParser
                     $this->product_info['dims']['y'] = StringHelper::getFloat( $value );
                 }
                 else if (
-                    !$has_range && ( false === stripos($value, 'per square yard')
-                        && str_starts_with($key, 'Weigh') )
+                    !$has_range && (
+                        false === stripos($value, 'per square yard')
+                        && false === stripos($value, '(1set)')
+                        && str_starts_with($key, 'Weigh')
+                    )
                 ) {
                     $this->product_info['weight'] = false !== stripos( $value, "oz" )
                         ? FeedHelper::convertLbsFromOz( StringHelper::getFloat( $value ) )
