@@ -507,8 +507,8 @@ since we would need to contact you to make the necessary changes.',
             });
 
         if ( count( $option_groups ) === 1 ) {
-            $price = 0;
             foreach ( $options as $key => $option ) {
+                $price = 0;
                 $this->formatValueAndPrice( $option['value'], $price );
 
                 $name = '';
