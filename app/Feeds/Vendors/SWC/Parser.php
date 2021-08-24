@@ -15,14 +15,11 @@ class Parser extends HtmlParser
     public const WEIGHT_FROM_SHIPPING_DIMS = '/(\d+[.]?\d*)[\s]?[lbs,lb]/u';
     public const NOT_VALID_DESC = [
         'When you\'re ready to upload your artwork, click on Artwork Upload on the top menu.',
-        "Before
- you upload your artwork to us, please make sure you've gone through the
- guidelines and requirements that are appropriate for the product you've
- ordered. Images that are in the wrong format, too low in resolution, or
- are the wrong dimensions can cause in a delay in your turnaround time 
-since we would need to contact you to make the necessary changes.",
-        'Uploading Artwork :'
-
+        "Before you upload your artwork to us",
+        'Uploading Artwork:',
+        'Regarding Colour Reproduction and Print Quality:',
+        'service@canadiandisplay.ca',
+        '1-888-748-8788',
     ];
     public const DIMS_REGEXES = [
         'shipping' => '/Shipping Dimensions[:]?[\s]?(:?\d+[\.]?\d*[\s]?[a-z,A-Z]{2,3}[.]?)?[\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{1,2})?[\s]?[x,X][\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{1,2})?[\s]?[x,X]?[\s]?(:?\d+[\.]?\d*)?(?:[\',",″]|[a-z]{1,2})?[\s]?(:?\d+[\.]?\d*[\s]?[a-z,A-Z]{2,3}[.]?)?/i',
@@ -129,15 +126,31 @@ since we would need to contact you to make the necessary changes.",
     private function pushDescription(): void
     {
         if ( $this->exists( '#ProductDetail_ProductDetails_div' ) ) {
-            $this->product_info['description'] = preg_replace([
+            $description = preg_replace([
                 '/<br>Click the button.*?<br>/is',
                 '/<div\b[^>]+\bclass=[\'\"]video_description[\'\"][^>]*>(.*?)<\/div>/s',
-            ], '', $this->getHtml( '#ProductDetail_ProductDetails_div' ));
+            ], '', $this->getHtml( '#ProductDetail_ProductDetails_div' ) );
+            $part_of_descriptions = explode( '<br>', $description );
+            $this->product_info['description'] = '';
 
-            foreach ( self::NOT_VALID_DESC as $value ) {
-                if ( false !== stripos( $this->product_info['description'], $value ) ) {
-                    $this->product_info['description'] = str_replace( $value, '', $this->product_info['description'] );
+            foreach ( $part_of_descriptions as $part_of_description ) {
+                if ( !$part_of_description ) {
+                    continue;
                 }
+                $pr_cr = new ParserCrawler( $part_of_description );
+
+                $not_valid = false;
+                foreach ( self::NOT_VALID_DESC as $value ) {
+                    if ( false !== stripos( $pr_cr->text(), $value ) ) {
+                        $not_valid = true;
+                    }
+                }
+
+                if ( $not_valid ) {
+                    continue;
+                }
+
+                $this->product_info['description'] .= '<p>' . $pr_cr->text() . '</p>';
             }
         }
     }
