@@ -22,7 +22,7 @@ class Parser extends HtmlParser
         '1-888-748-8788',
     ];
     public const DIMS_REGEXES = [
-        'shipping' => '/Shipping Dimensions[:]?[\s]?(:?\d+[\.]?\d*[\s]?[a-z,A-Z]{2,3}[.]?)?[\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{1,2})?[\s]?[x,X][\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{1,2})?[\s]?[x,X]?[\s]?(:?\d+[\.]?\d*)?(?:[\',",″]|[a-z]{1,2})?[\s]?(:?\d+[\.]?\d*[\s]?[a-z,A-Z]{2,3}[.]?)?/i',
+        'shipping' => '/Shipping Dimensions[:]?[-]?[\s]?(:?\d+[\.]?\d*[\s]?[a-z,A-Z]{2,3}[.]?)?[\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{1,2})?[\s]?[x,X][\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{1,2})?[\s]?[x,X]?[\s]?(:?\d+[\.]?\d*)?(?:[\',",″]|[a-z]{1,2})?[\s]?(:?\d+[\.]?\d*[\s]?[a-z,A-Z]{2,3}[.]?)?/i',
         'shipping_weight' => '/Shipping weight:[\s]?(\d+[\.]?\d*)/u',
         'weight' => '/Weight[:]?[\s]?(\d+[\.]?\d*)/',
         'depth' => '/Depth[:]?[\s]?(\d+[\.]?\d*)/',
@@ -66,7 +66,7 @@ class Parser extends HtmlParser
             $text = $c->text();
             if ( str_contains( $text, ':' ) && substr_count( $text, ':' ) === 1 ) {
                 [ $key, $value ] = explode( ':', $text, 2 );
-                if ( !$value ) {
+                if ( !$value && false === stripos( $text,'Display dimensions' )) {
                     $short_description[] = $text;
                 }
                 else {
@@ -99,18 +99,25 @@ class Parser extends HtmlParser
                 $this->product_info['dims'] = FeedHelper::getDimsInString($text, 'x');
             }
             else if ( preg_match( self::DIMS_REGEXES['depth'], $text, $depth) ) {
-                $this->product_info['dims']['x'] = StringHelper::getFloat( $depth[1] );
+                $this->product_info['dims']['z'] = StringHelper::getFloat( $depth[1] );
             }
             else if ( preg_match( self::DIMS_REGEXES['height'], $text, $height) ) {
                 $this->product_info['dims']['y'] = StringHelper::getFloat( $height[1] );
             }
             else if ( preg_match( self::DIMS_REGEXES['width'], $text, $width) ) {
-                $this->product_info['dims']['z'] = StringHelper::getFloat( $width[1] );
+                $this->product_info['dims']['x'] = StringHelper::getFloat( $width[1] );
             }
             else if ( preg_match( self::DIMS_REGEXES['weight'], $text, $weight) ) {
                 $this->product_info['weight'] = false !== stripos( $weight[1], "oz")
                     ? FeedHelper::convertLbsFromOz( StringHelper::getFloat( $weight[1] ) )
                     : StringHelper::getFloat( $weight[1] );
+            }
+            else if ( false !== stripos( $text, 'Click the button' ) ) {
+                $li = explode( '<br>', $c->html() );
+
+                if ( isset( $li[0] ) ) {
+                    $short_description[] = $li[0];
+                }
             }
             else {
                 $short_description[] = $text;
@@ -129,6 +136,7 @@ class Parser extends HtmlParser
             $description = preg_replace([
                 '/<br>Click the button.*?<br>/is',
                 '/<div\b[^>]+\bclass=[\'\"]video_description[\'\"][^>]*>(.*?)<\/div>/s',
+                '/<b\b[^>]*>(.*?)<\/b>/i',
             ], '', $this->getHtml( '#ProductDetail_ProductDetails_div' ) );
             $part_of_descriptions = explode( '<br>', $description );
             $this->product_info['description'] = '';
@@ -175,7 +183,7 @@ class Parser extends HtmlParser
             $this->filter( '#ProductDetail_ProductDetails_div a' )
                 ->each( function ( ParserCrawler $c ) {
                     if ( false !== stripos( $c->attr( 'href' ), 'pdf' ) ) {
-                        $this->product_info['files'][] = [
+                        $this->product_info['files'][$c->attr( 'href' )] = [
                             'name' => $c->text() ?: $this->getProduct(),
                             'link' => $c->attr( 'href' )
                         ];
@@ -235,7 +243,7 @@ class Parser extends HtmlParser
                 $this->product_info['shipping_weight'] = StringHelper::getFloat( $value );
             }
             else if ( !$has_range && str_starts_with( $key, 'Depth' ) ) {
-                $this->product_info['dims']['x'] = StringHelper::getFloat( $value );
+                $this->product_info['dims']['z'] = StringHelper::getFloat( $value );
             }
             else if ( !$has_range && str_starts_with( $key, 'Height' ) ) {
                 $this->product_info['dims']['y'] = StringHelper::getFloat( $value );
@@ -249,13 +257,17 @@ class Parser extends HtmlParser
                     : StringHelper::getFloat( $value );
             }
             else if ( !$has_range && str_starts_with( $key, 'Width' ) ) {
-                $this->product_info['dims']['z'] = StringHelper::getFloat( $value );
+                $this->product_info['dims']['x'] = StringHelper::getFloat( $value );
             }
             else if (
                 false === stripos( $key, 'when pressed down on flat surface' )
                 &&
-                ( str_starts_with( $key, 'Overall Dimensions' )
-                || str_starts_with( $key, 'Dimensions' ) )
+                (
+                    str_starts_with( $key, 'Overall Dimensions' )
+                    || str_starts_with( $key, 'Dimensions' )
+                    || str_starts_with( $key, 'Overall size' )
+                    || str_starts_with( $key, 'Overall Size' )
+                )
             ) {
                 if ( false !== str_contains( $value, '-' ) ) {
                     $value = str_replace( "-", ' ', $value );
@@ -490,7 +502,10 @@ class Parser extends HtmlParser
 
     public function getProductFiles(): array
     {
-        return $this->product_info['files'] ?? [];
+        if ( !isset($this->product_info['files'] ) ) {
+            return [];
+        }
+        return array_values( $this->product_info['files'] );
     }
 
     /**
@@ -508,12 +523,11 @@ class Parser extends HtmlParser
 
                 $select->filter( 'option' )
                     ->each( function ( ParserCrawler $option ) use ( &$options, &$option_values, $select ) {
-                        $options[$option->attr( 'value' )] = [
-                            'name' => $select->attr( 'title' ),
-                            'value' => $option->text(),
-                        ];
-
-                        if ( false === stripos( $option->text(), 'Other: Contact Us' ) ) {
+                        if ( false === stripos( $option->text(), 'contact us' ) ) {
+                            $options[$option->attr( 'value' )] = [
+                                'name' => $select->attr( 'title' ),
+                                'value' => $option->text(),
+                            ];
                             $option_values[] = $option->attr( 'value' );
                         }
                     });
