@@ -137,11 +137,11 @@ class Parser extends HtmlParser
                 if ( !$part_of_description ) {
                     continue;
                 }
-                $pr_cr = new ParserCrawler( $part_of_description );
+                $text = strip_tags( $part_of_description );
 
                 $not_valid = false;
                 foreach ( self::NOT_VALID_DESC as $value ) {
-                    if ( false !== stripos( $pr_cr->text(), $value ) ) {
+                    if ( false !== stripos( $text, $value ) ) {
                         $not_valid = true;
                     }
                 }
@@ -150,7 +150,7 @@ class Parser extends HtmlParser
                     continue;
                 }
 
-                $this->product_info['description'] .= '<p>' . $pr_cr->text() . '</p>';
+                $this->product_info['description'] .= '<p>' . $text . '</p>';
             }
         }
     }
