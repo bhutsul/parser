@@ -11,7 +11,7 @@ use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
 {
-    public const PRICE_IN_OPTION_REGEX = '/\[[A-Z,a-z]{3,3}\s[A-Z]{2,2}\$(\d+[\,]?\d+[\.]?\d*)\]/u';
+    public const PRICE_IN_OPTION_REGEX = '/\[[A-Z,a-z]{3,3}\s[A-Z,a-z]{2,2}\$(\d+[\,]?[\.]?\d*[\,]?[\.]?\d*?)\]/u';
     public const WEIGHT_FROM_SHIPPING_DIMS = '/(\d+[.]?\d*)[\s]?[lbs,lb]/u';
     public const DIMS_REGEXES = [
         'shipping' => '/Shipping Dimensions[:]?[\s]?(:?\d+[\.]?\d*[\s]?[a-z,A-Z]{2,3}[.]?)?[\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{1,2})?[\s]?[x,X][\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{1,2})?[\s]?[x,X]?[\s]?(:?\d+[\.]?\d*)?(?:[\',",″]|[a-z]{1,2})?[\s]?(:?\d+[\.]?\d*[\s]?[a-z,A-Z]{2,3}[.]?)?/i',
@@ -21,6 +21,7 @@ class Parser extends HtmlParser
         'height' => '/Height[:]?[\s]?(\d+[\.]?\d*)/',
         'width' => '/Width[:]?[\s]?(\d+[\.]?\d*)/',
         'dims' => '/(\d+[\.]?\d*)(?:[\',",″]|[a-z]{2,2})?[\s]?[x,X][\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{2,2})?[\s]?[x,X]?[\s]?(:?\d+[\.]?\d*)?(?:[\',",″]|[a-z]{2,2})/i',
+        'HDW' => '/(\d+[\.]?\d*)[\',",″]?[\s]?\(H\)[\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[\',",″]?[\s]?\(D\)[\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[\',",″]?[\s]?\(W\)/i',
     ];
 
     private array $product_info;
@@ -65,7 +66,7 @@ class Parser extends HtmlParser
                 }
             }
             else if ( preg_match( self::DIMS_REGEXES['shipping'], $text, $shipping ) ) {
-                if ( preg_match( self::WEIGHT_FROM_SHIPPING_DIMS, $shipping[0], $shipping_weight ) && isset( $shipping_weight[1] ) ) {
+                if ( preg_match( self::WEIGHT_FROM_SHIPPING_DIMS, $text, $shipping_weight ) && isset( $shipping_weight[1] ) ) {
                     $this->product_info['shipping_weight'] = StringHelper::getFloat( $shipping_weight[1] );
                     $shipping[0] = preg_replace( self::WEIGHT_FROM_SHIPPING_DIMS, '', $shipping[0]);
                 }
@@ -79,6 +80,12 @@ class Parser extends HtmlParser
                 && isset( $dims[1], $dims[0] ) && strlen( $c->text() ) === strlen( $dims[0] )
             ) {
                 $this->product_info['dims'] = FeedHelper::getDimsInString($dims[0], 'x');
+            }
+            else if (
+                preg_match( self::DIMS_REGEXES['HDW'], $text, $hdw )
+                && isset( $hdw[1], $hdw[0] ) && strlen( $c->text() ) === strlen( $hdw[0] )
+            ) {
+                $this->product_info['dims'] = FeedHelper::getDimsInString( $hdw[0], 'x', 2, 0 , 1);
             }
             else if ( str_starts_with( $text, 'Measures' ) ) {
                 $this->product_info['dims'] = FeedHelper::getDimsInString($text, 'x');
@@ -114,6 +121,19 @@ class Parser extends HtmlParser
             $this->product_info['description'] = preg_replace([
                 '/<div\b[^>]+\bclass=[\'\"]video_description[\'\"][^>]*>(.*?)<\/div>/s',
             ], '', $this->getHtml( '#ProductDetail_ProductDetails_div' ));
+
+            if (
+                false !== stripos(
+                    $this->product_info['description'],
+                    'When you\'re ready to upload your artwork, click on Artwork Upload on the top menu.'
+                )
+            ) {
+                $this->product_info['description'] = str_replace(
+                    'When you\'re ready to upload your artwork, click on Artwork Upload on the top menu.',
+                    '',
+                    $this->product_info['description']
+                );
+            }
         }
     }
 
@@ -169,39 +189,58 @@ class Parser extends HtmlParser
         $this->product_info['shorts'] = $shorts_and_attributes['short_description'];
 
         foreach ( $shorts_and_attributes['attributes'] as $key => $value ) {
-            if ( str_starts_with( $key, 'Shipping dimensions' ) || str_starts_with( $key, 'Shipping Dimensions' ) ) {
+            $has_range = str_contains( $value, '~' ) || false !== stripos( $key, 'range' );
+            if (
+                false === stripos( $key, 'Thick Lightweight' )
+                && (
+                    str_starts_with( $key, 'Shipping dimensions' )
+                    || str_starts_with( $key, 'Shipping Dimensions' )
+                    || str_ends_with( $key, 'Shipping Dimensions' )
+                    || str_ends_with( $key, 'Shipping dimensions' )
+                )
+            ) {
                 if ( preg_match( self::WEIGHT_FROM_SHIPPING_DIMS, $value, $matches ) && isset( $matches[1] ) ) {
                     $this->product_info['shipping_weight'] = StringHelper::getFloat( $matches[1] );
                     $value = preg_replace( self::WEIGHT_FROM_SHIPPING_DIMS, '', $value);
                 }
                 $this->product_info['shipping_dims'] = FeedHelper::getDimsInString( $value, 'x' );
+
+                if (
+                    preg_match( self::DIMS_REGEXES['HDW'], $key, $hdw )
+                    && isset( $hdw[1], $hdw[0] )
+                ) {
+                    $this->product_info['dims'] = FeedHelper::getDimsInString( $hdw[0], 'x', 2, 0 , 1);
+                }
+
             }
             else if ( str_starts_with( $key, 'Shipping weight' ) || str_starts_with( $key, 'Shipping Weight' ) ) {
                 $this->product_info['shipping_weight'] = StringHelper::getFloat( $value );
             }
-            else if ( str_starts_with( $key, 'Depth' ) ) {
+            else if ( !$has_range && str_starts_with( $key, 'Depth' ) ) {
                 $this->product_info['dims']['x'] = StringHelper::getFloat( $value );
             }
-            else if ( str_starts_with( $key, 'Height' ) ) {
+            else if ( !$has_range && str_starts_with( $key, 'Height' ) ) {
                 $this->product_info['dims']['y'] = StringHelper::getFloat( $value );
             }
             else if (
-                ( false === stripos($value, 'per square yard')
+                !$has_range && ( false === stripos($value, 'per square yard')
                     && str_starts_with($key, 'Weigh') )
             ) {
                 $this->product_info['weight'] = false !== stripos( $value, "oz" )
                     ? FeedHelper::convertLbsFromOz( StringHelper::getFloat( $value ) )
                     : StringHelper::getFloat( $value );
             }
-            else if ( str_starts_with( $key, 'Width' ) ) {
+            else if ( !$has_range && str_starts_with( $key, 'Width' ) ) {
                 $this->product_info['dims']['z'] = StringHelper::getFloat( $value );
             }
             else if (
-                str_starts_with( $key, 'Dimensions' )
-                && false === stripos( $key, 'when pressed down on flat surface' )
+                false === stripos( $key, 'when pressed down on flat surface' )
+                &&
+                ( str_starts_with( $key, 'Overall Dimensions' )
+                || str_starts_with( $key, 'Dimensions' ) )
             ) {
                 if ( false !== str_contains( $value, '-' ) ) {
-                    $value = str_replace("-", ' ', $value);
+                    $value = str_replace( "-", ' ', $value );
                 }
                 if ( false !== stripos( $key, '(lxwxh)' ) ) {
                     $this->product_info['dims'] = FeedHelper::getDimsInString( $value, 'x', 0, 2, 1 );
@@ -209,6 +248,11 @@ class Parser extends HtmlParser
                 else {
                     $this->product_info['dims'] = FeedHelper::getDimsInString( $value, 'x' );
                 }
+            }
+            else if (
+               false !== stripos( $key, 'Thick Lightweight' )
+            ) {
+                $this->product_info['shorts'][] = $key . ': ' . $value;
             }
             else {
                 $this->product_info['attributes'][$key] = $value;
@@ -251,7 +295,8 @@ class Parser extends HtmlParser
     {
         $name .= $option['name'];
         $name .= ': ';
-        $name .= $option['value'];
+        $name .= trim( $option['value'], '. ' );
+        $name .= '. ';
     }
 
     private function childClone( FeedItem $parent_fi, array &$child, string $name, string $mpn, int|float $price): void
@@ -260,6 +305,7 @@ class Parser extends HtmlParser
 
         $fi->setProduct( $name );
         $fi->setCostToUs( $this->getCostToUs() + $price );
+        $fi->setListPrice( null );
         $fi->setRAvail( $this->getAvail() );
 
         $fi->setDimX( $this->getDimX() );
@@ -449,7 +495,9 @@ class Parser extends HtmlParser
                             'value' => $option->text(),
                         ];
 
-                        $option_values[] = $option->attr( 'value' );
+                        if ( false === stripos( $option->text(), 'Other: Contact Us' ) ) {
+                            $option_values[] = $option->attr( 'value' );
+                        }
                     });
                 $option_groups[] = $option_values;
             });
