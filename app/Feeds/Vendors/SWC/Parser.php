@@ -15,12 +15,12 @@ class Parser extends HtmlParser
     public const WEIGHT_FROM_SHIPPING_DIMS = '/(\d+[.]?\d*)[\s]?[lbs,lb]/u';
     public const NOT_VALID_DESC = [
         'When you\'re ready to upload your artwork, click on Artwork Upload on the top menu.',
-        'Before
+        "Before
  you upload your artwork to us, please make sure you\'ve gone through the
  guidelines and requirements that are appropriate for the product you\'ve
  ordered. Images that are in the wrong format, too low in resolution, or
  are the wrong dimensions can cause in a delay in your turnaround time 
-since we would need to contact you to make the necessary changes.',
+since we would need to contact you to make the necessary changes.",
         'Uploading Artwork :'
 
     ];
@@ -130,6 +130,7 @@ since we would need to contact you to make the necessary changes.',
     {
         if ( $this->exists( '#ProductDetail_ProductDetails_div' ) ) {
             $this->product_info['description'] = preg_replace([
+                '/<br>Click the button.*?<br>/is',
                 '/<div\b[^>]+\bclass=[\'\"]video_description[\'\"][^>]*>(.*?)<\/div>/s',
             ], '', $this->getHtml( '#ProductDetail_ProductDetails_div' ));
 
