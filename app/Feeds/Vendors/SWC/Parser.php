@@ -212,7 +212,7 @@ class Parser extends HtmlParser
                 '/<b\b[^>]*>(.*?)<\/b>/i',
             ], '', $this->getHtml( '#ProductDetail_ProductDetails_div' ) );
             $part_of_descriptions = explode( '<br>', $description );
-            $this->product_info['description'] = $this->product_info['description'] ?? '';
+            $this->product_info['description'] = '';
 
             foreach ( $part_of_descriptions as $part_of_description ) {
                 if ( !$part_of_description ) {
@@ -273,7 +273,13 @@ class Parser extends HtmlParser
     {
         if ( $this->exists( '#ProductDetail_TechSpecs_div' ) ) {
             if ( $this->filter( '#ProductDetail_TechSpecs_div ul' )->count() > 1  ) {
-                $this->product_info['description'] = $this->getHtml( '#ProductDetail_TechSpecs_div' );
+                $description = $this->getHtml( '#ProductDetail_TechSpecs_div' );
+                if ( isset( $this->product_info['description'] ) ) {
+                    $this->product_info['description'] .= $description;
+                }
+                else {
+                    $this->product_info['description'] = $description;
+                }
             }
             else {
                 $shorts_and_attributes = $this->getShortsAndAttributesInList(
