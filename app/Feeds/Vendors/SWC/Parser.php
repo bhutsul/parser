@@ -13,6 +13,17 @@ class Parser extends HtmlParser
 {
     public const PRICE_IN_OPTION_REGEX = '/\[[A-Z,a-z]{3,3}\s[A-Z,a-z]{2,2}\$(\d+[\,]?[\.]?\d*[\,]?[\.]?\d*?)\]/u';
     public const WEIGHT_FROM_SHIPPING_DIMS = '/(\d+[.]?\d*)[\s]?[lbs,lb]/u';
+    public const NOT_VALID_DESC = [
+        'When you\'re ready to upload your artwork, click on Artwork Upload on the top menu.',
+        'Before
+ you upload your artwork to us, please make sure you\'ve gone through the
+ guidelines and requirements that are appropriate for the product you\'ve
+ ordered. Images that are in the wrong format, too low in resolution, or
+ are the wrong dimensions can cause in a delay in your turnaround time 
+since we would need to contact you to make the necessary changes.',
+        'Uploading Artwork :'
+
+    ];
     public const DIMS_REGEXES = [
         'shipping' => '/Shipping Dimensions[:]?[\s]?(:?\d+[\.]?\d*[\s]?[a-z,A-Z]{2,3}[.]?)?[\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{1,2})?[\s]?[x,X][\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{1,2})?[\s]?[x,X]?[\s]?(:?\d+[\.]?\d*)?(?:[\',",″]|[a-z]{1,2})?[\s]?(:?\d+[\.]?\d*[\s]?[a-z,A-Z]{2,3}[.]?)?/i',
         'shipping_weight' => '/Shipping weight:[\s]?(\d+[\.]?\d*)/u',
@@ -122,17 +133,10 @@ class Parser extends HtmlParser
                 '/<div\b[^>]+\bclass=[\'\"]video_description[\'\"][^>]*>(.*?)<\/div>/s',
             ], '', $this->getHtml( '#ProductDetail_ProductDetails_div' ));
 
-            if (
-                false !== stripos(
-                    $this->product_info['description'],
-                    'When you\'re ready to upload your artwork, click on Artwork Upload on the top menu.'
-                )
-            ) {
-                $this->product_info['description'] = str_replace(
-                    'When you\'re ready to upload your artwork, click on Artwork Upload on the top menu.',
-                    '',
-                    $this->product_info['description']
-                );
+            foreach ( self::NOT_VALID_DESC as $value ) {
+                if ( false !== stripos( $this->product_info['description'], $value ) ) {
+                    $this->product_info['description'] = str_replace( $value, '', $this->product_info['description'] );
+                }
             }
         }
     }
