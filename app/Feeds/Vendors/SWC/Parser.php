@@ -16,8 +16,8 @@ class Parser extends HtmlParser
     public const NOT_VALID_DESC = [
         'When you\'re ready to upload your artwork, click on Artwork Upload on the top menu.',
         "Before
- you upload your artwork to us, please make sure you\'ve gone through the
- guidelines and requirements that are appropriate for the product you\'ve
+ you upload your artwork to us, please make sure you've gone through the
+ guidelines and requirements that are appropriate for the product you've
  ordered. Images that are in the wrong format, too low in resolution, or
  are the wrong dimensions can cause in a delay in your turnaround time 
 since we would need to contact you to make the necessary changes.",
