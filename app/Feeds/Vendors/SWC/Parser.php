@@ -8,18 +8,25 @@ use App\Feeds\Utils\ParserCrawler;
 use App\Helpers\FeedHelper;
 use App\Helpers\StringHelper;
 
-
 class Parser extends HtmlParser
 {
     public const PRICE_IN_OPTION_REGEX = '/\[[A-Z,a-z]{3,3}\s[A-Z,a-z]{2,2}\$(\d+[\,]?[\.]?\d*[\,]?[\.]?\d*?)\]/u';
-    public const WEIGHT_FROM_SHIPPING_DIMS = '/(\d+[.]?\d*)[\s]?[lbs,lb]/u';
+    public const WEIGHT_FROM_SHIPPING_DIMS = '/(\d+[.]?\d*)[\s]?(lbs|lb)[\.]?/u';
     public const NOT_VALID_DESC = [
         'When you\'re ready to upload your artwork, click on Artwork Upload on the top menu.',
-        "Before you upload your artwork to us",
-        'Uploading Artwork:',
+        "you upload your artwork",
+        'Uploading Artwork',
         'Regarding Colour Reproduction and Print Quality:',
         'service@canadiandisplay.ca',
         '1-888-748-8788',
+        'Please contact us',
+        'Click the button below to get the artwork',
+        'click on',
+        'call if you have any questions.',
+        'click the',
+        'available here',
+        'upload',
+        'contact us'
     ];
     public const DIMS_REGEXES = [
         'shipping' => '/Shipping Dimensions[:]?[-]?[\s]?(:?\d+[\.]?\d*[\s]?[a-z,A-Z]{2,3}[.]?)?[\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{1,2})?[\s]?[x,X][\s]?(\d+[\.]?\d*)(?:[\',",″]|[a-z]{1,2})?[\s]?[x,X]?[\s]?(:?\d+[\.]?\d*)?(?:[\',",″]|[a-z]{1,2})?[\s]?(:?\d+[\.]?\d*[\s]?[a-z,A-Z]{2,3}[.]?)?/i',
@@ -38,12 +45,12 @@ class Parser extends HtmlParser
 
     private function combinations( array $arrays, int $i = 0 )
     {
-        if ( !isset( $arrays[$i] ) ) {
+        if ( !isset( $arrays[ $i ] ) ) {
             return [];
         }
 
         if ( $i === count( $arrays ) - 1 ) {
-            return $arrays[$i];
+            return $arrays[ $i ];
         }
 
         // get combinations from subsequent arrays
@@ -52,9 +59,9 @@ class Parser extends HtmlParser
         $result = [];
 
         // concat each array from tmp with each element from $arrays[$i]
-        foreach ( $arrays[$i] as $v ) {
+        foreach ( $arrays[ $i ] as $v ) {
             foreach ( $tmp as $t ) {
-                $result[] = is_array( $t ) ? array_merge( [$v], $t ) : [$v, $t];
+                $result[] = is_array( $t ) ? array_merge( [ $v ], $t ) : [ $v, $t ];
             }
         }
 
@@ -70,7 +77,7 @@ class Parser extends HtmlParser
                 [ $key, $value ] = explode( ':', $text, 2 );
                 $has_range = str_contains( $value, '~' ) || false !== stripos( $key, 'range' );
 
-                if ( !$value && false === stripos( $text,'Display dimensions' ) ) {
+                if ( !$value && false === stripos( $text, 'Display dimensions' ) ) {
                     $short_description[] = $text;
                 }
                 else if (
@@ -82,42 +89,42 @@ class Parser extends HtmlParser
                         || str_ends_with( $key, 'Shipping dimensions' )
                     )
                 ) {
-                    if ( preg_match( self::WEIGHT_FROM_SHIPPING_DIMS, $value, $matches ) && isset( $matches[1] ) ) {
-                        $this->product_info['shipping_weight'] = StringHelper::getFloat( $matches[1] );
+                    if ( preg_match( self::WEIGHT_FROM_SHIPPING_DIMS, $value, $matches ) && isset( $matches[ 1 ] ) ) {
+                        $this->product_info[ 'shipping_weight' ] = StringHelper::getFloat( $matches[ 1 ] );
                         $value = preg_replace( self::WEIGHT_FROM_SHIPPING_DIMS, '', $value );
                     }
-                    $this->product_info['shipping_dims'] = FeedHelper::getDimsInString( $value, 'x' );
+                    $this->product_info[ 'shipping_dims' ] = FeedHelper::getDimsInString( $value, 'x' );
 
                     if (
-                        preg_match( self::DIMS_REGEXES['HDW'], $key, $hdw )
-                        && isset( $hdw[1], $hdw[0] )
+                        preg_match( self::DIMS_REGEXES[ 'HDW' ], $key, $hdw )
+                        && isset( $hdw[ 1 ], $hdw[ 0 ] )
                     ) {
-                        $this->product_info['dims'] = FeedHelper::getDimsInString( $hdw[0], 'x', 2, 0 , 1);
+                        $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $hdw[ 0 ], 'x', 2, 0, 1 );
                     }
 
                 }
                 else if ( str_starts_with( $key, 'Shipping weight' ) || str_starts_with( $key, 'Shipping Weight' ) ) {
-                    $this->product_info['shipping_weight'] = StringHelper::getFloat( $value );
+                    $this->product_info[ 'shipping_weight' ] = StringHelper::getFloat( $value );
                 }
                 else if ( !$has_range && str_starts_with( $key, 'Depth' ) ) {
-                    $this->product_info['dims']['z'] = StringHelper::getFloat( $value );
+                    $this->product_info[ 'dims' ][ 'z' ] = StringHelper::getFloat( $value );
                 }
                 else if ( !$has_range && str_starts_with( $key, 'Height' ) ) {
-                    $this->product_info['dims']['y'] = StringHelper::getFloat( $value );
+                    $this->product_info[ 'dims' ][ 'y' ] = StringHelper::getFloat( $value );
                 }
                 else if (
                     !$has_range && (
-                        false === stripos($value, 'per square yard')
-                        && false === stripos($value, '(1set)')
-                        && str_starts_with($key, 'Weigh')
+                        false === stripos( $value, 'per square yard' )
+                        && false === stripos( $value, '(1set)' )
+                        && str_starts_with( $key, 'Weigh' )
                     )
                 ) {
-                    $this->product_info['weight'] = false !== stripos( $value, "oz" )
+                    $this->product_info[ 'weight' ] = false !== stripos( $value, "oz" )
                         ? FeedHelper::convertLbsFromOz( StringHelper::getFloat( $value ) )
                         : StringHelper::getFloat( $value );
                 }
                 else if ( !$has_range && str_starts_with( $key, 'Width' ) ) {
-                    $this->product_info['dims']['x'] = StringHelper::getFloat( $value );
+                    $this->product_info[ 'dims' ][ 'x' ] = StringHelper::getFloat( $value );
                 }
                 else if (
                     false === stripos( $key, 'when pressed down on flat surface' )
@@ -133,11 +140,11 @@ class Parser extends HtmlParser
                     if ( false !== str_contains( $value, '-' ) ) {
                         $value = str_replace( "-", ' ', $value );
                     }
-                    if ( false !== stripos( $key, '(lxwxh)' ) || preg_match( self::DIMS_REGEXES['LWH'], $value ) ) {
-                        $this->product_info['dims'] = FeedHelper::getDimsInString( $value, 'x',  1, 2, 0 );
+                    if ( false !== stripos( $key, '(lxwxh)' ) || preg_match( self::DIMS_REGEXES[ 'LWH' ], $value ) ) {
+                        $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, 'x', 1, 2, 0 );
                     }
                     else {
-                        $this->product_info['dims'] = FeedHelper::getDimsInString( $value, 'x' );
+                        $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, 'x' );
                     }
                 }
                 else if (
@@ -149,50 +156,46 @@ class Parser extends HtmlParser
                     $attributes[ trim( $key ) ] = trim( StringHelper::normalizeSpaceInString( $value ) );
                 }
             }
-            else if ( preg_match( self::DIMS_REGEXES['shipping'], $text, $shipping ) ) {
-                if ( preg_match( self::WEIGHT_FROM_SHIPPING_DIMS, $text, $shipping_weight ) && isset( $shipping_weight[1] ) ) {
-                    $this->product_info['shipping_weight'] = StringHelper::getFloat( $shipping_weight[1] );
-                    $shipping[0] = preg_replace( self::WEIGHT_FROM_SHIPPING_DIMS, '', $shipping[0] );
-                }
-                $this->product_info['shipping_dims'] = FeedHelper::getDimsInString( $shipping[0], 'x' );
+            else if ( preg_match( self::DIMS_REGEXES[ 'shipping' ], $text, $shipping ) ) {
+                $this->pushShipping( $text, $shipping );
             }
-            else if ( preg_match( self::DIMS_REGEXES['shipping_weight'], $text, $shipping_weight) ) {
-                $this->product_info['shipping_weight'] = StringHelper::getFloat( $shipping_weight[1] );
+            else if ( preg_match( self::DIMS_REGEXES[ 'shipping_weight' ], $text, $shipping_weight ) ) {
+                $this->product_info[ 'shipping_weight' ] = StringHelper::getFloat( $shipping_weight[ 1 ] );
             }
             else if (
-                preg_match( self::DIMS_REGEXES['dims'], $text, $dims )
-                && isset( $dims[1], $dims[0] ) && strlen( $c->text() ) === strlen( $dims[0] )
+                preg_match( self::DIMS_REGEXES[ 'dims' ], $text, $dims )
+                && isset( $dims[ 1 ], $dims[ 0 ] ) && strlen( $c->text() ) === strlen( $dims[ 0 ] )
             ) {
-                $this->product_info['dims'] = FeedHelper::getDimsInString( $dims[0], 'x' );
+                $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $dims[ 0 ], 'x' );
             }
             else if (
-                preg_match( self::DIMS_REGEXES['HDW'], $text, $hdw )
-                && isset( $hdw[1], $hdw[0] ) && strlen( $c->text() ) === strlen( $hdw[0] )
+                preg_match( self::DIMS_REGEXES[ 'HDW' ], $text, $hdw )
+                && isset( $hdw[ 1 ], $hdw[ 0 ] ) && strlen( $c->text() ) === strlen( $hdw[ 0 ] )
             ) {
-                $this->product_info['dims'] = FeedHelper::getDimsInString( $hdw[0], 'x', 2, 0 , 1);
+                $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $hdw[ 0 ], 'x', 2, 0, 1 );
             }
             else if ( str_starts_with( $text, 'Measures' ) ) {
-                $this->product_info['dims'] = FeedHelper::getDimsInString($text, 'x');
+                $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $text, 'x' );
             }
-            else if ( preg_match( self::DIMS_REGEXES['depth'], $text, $depth) ) {
-                $this->product_info['dims']['z'] = StringHelper::getFloat( $depth[1] );
+            else if ( preg_match( self::DIMS_REGEXES[ 'depth' ], $text, $depth ) ) {
+                $this->product_info[ 'dims' ][ 'z' ] = StringHelper::getFloat( $depth[ 1 ] );
             }
-            else if ( preg_match( self::DIMS_REGEXES['height'], $text, $height) ) {
-                $this->product_info['dims']['y'] = StringHelper::getFloat( $height[1] );
+            else if ( preg_match( self::DIMS_REGEXES[ 'height' ], $text, $height ) ) {
+                $this->product_info[ 'dims' ][ 'y' ] = StringHelper::getFloat( $height[ 1 ] );
             }
-            else if ( preg_match( self::DIMS_REGEXES['width'], $text, $width) ) {
-                $this->product_info['dims']['x'] = StringHelper::getFloat( $width[1] );
+            else if ( preg_match( self::DIMS_REGEXES[ 'width' ], $text, $width ) ) {
+                $this->product_info[ 'dims' ][ 'x' ] = StringHelper::getFloat( $width[ 1 ] );
             }
-            else if ( preg_match( self::DIMS_REGEXES['weight'], $text, $weight ) ) {
-                $this->product_info['weight'] = false !== stripos( $weight[1], "oz" )
-                    ? FeedHelper::convertLbsFromOz( StringHelper::getFloat( $weight[1] ) )
-                    : StringHelper::getFloat( $weight[1] );
+            else if ( preg_match( self::DIMS_REGEXES[ 'weight' ], $text, $weight ) ) {
+                $this->product_info[ 'weight' ] = false !== stripos( $weight[ 1 ], "oz" )
+                    ? FeedHelper::convertLbsFromOz( StringHelper::getFloat( $weight[ 1 ] ) )
+                    : StringHelper::getFloat( $weight[ 1 ] );
             }
             else if ( false !== stripos( $text, 'Click the button' ) ) {
                 $li = explode( '<br>', $c->html() );
 
-                if ( isset( $li[0] ) ) {
-                    $short_description[] = $li[0];
+                if ( isset( $li[ 0 ] ) ) {
+                    $short_description[] = $li[ 0 ];
                 }
             }
             else {
@@ -209,19 +212,19 @@ class Parser extends HtmlParser
     private function pushDescription(): void
     {
         if ( $this->exists( '#ProductDetail_ProductDetails_div' ) ) {
-            $description = preg_replace([
+            $description = preg_replace( [
                 '/<br>Click the button.*?<br>/is',
                 '/<div\b[^>]+\bclass=[\'\"]video_description[\'\"][^>]*>(.*?)<\/div>/s',
                 '/<b\b[^>]*>(.*?)<\/b>/i',
             ], '', $this->getHtml( '#ProductDetail_ProductDetails_div' ) );
             $part_of_descriptions = explode( '<br>', $description );
-            $this->product_info['description'] = '';
+            $this->product_info[ 'description' ] = '';
 
             foreach ( $part_of_descriptions as $part_of_description ) {
                 if ( !$part_of_description ) {
                     continue;
                 }
-                $text = strip_tags( $part_of_description );
+                $text = trim( strip_tags( $part_of_description ) );
 
                 $not_valid = false;
                 foreach ( self::NOT_VALID_DESC as $value ) {
@@ -234,7 +237,7 @@ class Parser extends HtmlParser
                     continue;
                 }
 
-                $this->product_info['description'] .= '<p>' . $text . '</p>';
+                $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
             }
         }
     }
@@ -244,12 +247,12 @@ class Parser extends HtmlParser
         if ( $this->exists( '#ProductDetail_ProductDetails_div .video_container' ) ) {
             $this->filter( '#ProductDetail_ProductDetails_div .video_container' )
                 ->each( function ( ParserCrawler $c ) {
-                    $this->product_info['videos'][] = [
-                        'name' => $c->getText( '.video_description' ) ? :$this->getProduct(),
+                    $this->product_info[ 'videos' ][] = [
+                        'name' => $c->getText( '.video_description' ) ?: $this->getProduct(),
                         'provider' => 'youtube',
-                        'video' => 'https://' . ltrim( $c->getAttr(  'iframe','src' ), '//' )
+                        'video' => 'https://' . ltrim( $c->getAttr( 'iframe', 'src' ), '//' )
                     ];
-                });
+                } );
         }
     }
 
@@ -261,27 +264,27 @@ class Parser extends HtmlParser
                     if ( false !== stripos( $c->attr( 'href' ), 'pdf' ) ) {
                         if ( substr_count( $c->attr( 'href' ), 'https' ) === 2 ) {
                             $href = explode( 'https', $c->attr( 'href' ) );
-                            $href = 'https' . $href[2];
+                            $href = 'https' . $href[ 2 ];
                         }
-                        $this->product_info['files'][$c->attr( 'href' )] = [
+                        $this->product_info[ 'files' ][ $c->attr( 'href' ) ] = [
                             'name' => $c->text() ?: $this->getProduct(),
                             'link' => $href ?? $c->attr( 'href' )
                         ];
                     }
-                });
+                } );
         }
     }
 
     private function pushShortsAndAttributesAndDims(): void
     {
         if ( $this->exists( '#ProductDetail_TechSpecs_div' ) ) {
-            if ( $this->filter( '#ProductDetail_TechSpecs_div ul' )->count() > 1  ) {
+            if ( $this->filter( '#ProductDetail_TechSpecs_div ul' )->count() > 1 ) {
                 $description = $this->getHtml( '#ProductDetail_TechSpecs_div' );
-                if ( isset( $this->product_info['description'] ) ) {
-                    $this->product_info['description'] .= $description;
+                if ( isset( $this->product_info[ 'description' ] ) ) {
+                    $this->product_info[ 'description' ] .= $description;
                 }
                 else {
-                    $this->product_info['description'] = $description;
+                    $this->product_info[ 'description' ] = $description;
                 }
             }
             else {
@@ -294,59 +297,77 @@ class Parser extends HtmlParser
         if ( $this->exists( '#ProductDetail_ProductDetails_div2' ) ) {
             $shorts_and_attributes = $this->getShortsAndAttributesInList(
                 $this->getHtml( '#ProductDetail_ProductDetails_div2 ul' ),
-                $shorts_and_attributes['short_description'] ?? [],
-                $shorts_and_attributes['attributes'] ?? [],
+                $shorts_and_attributes[ 'short_description' ] ?? [],
+                $shorts_and_attributes[ 'attributes' ] ?? [],
             );
+        }
+
+        if ( $this->exists( '#ProductDetail_ExtInfo_div' ) ) {
+            $ext_info = $this->getText( '#ProductDetail_ExtInfo_div' );
+
+            if ( preg_match( self::DIMS_REGEXES[ 'shipping' ], $ext_info, $shipping ) ) {
+                $this->pushShipping( $ext_info, $shipping );
+            }
         }
 
         if ( !isset( $shorts_and_attributes ) ) {
             return;
         }
 
-        $this->product_info['shorts'] = $shorts_and_attributes['short_description'];
-        $this->product_info['attributes'] = $shorts_and_attributes['attributes'] ?: null;
+        $this->product_info[ 'shorts' ] = $shorts_and_attributes[ 'short_description' ];
+        $this->product_info[ 'attributes' ] = $shorts_and_attributes[ 'attributes' ] ?: null;
     }
 
-    private function formatValueAndPrice(string &$value, int|float &$price ): void
+    private function pushShipping( string $text, array $shipping ):void
+    {
+        if ( preg_match( self::WEIGHT_FROM_SHIPPING_DIMS, $text, $shipping_weight ) && isset( $shipping_weight[ 1 ] ) ) {
+            $this->product_info[ 'shipping_weight' ] = StringHelper::getFloat( $shipping_weight[ 1 ] );
+            $shipping[ 0 ] = preg_replace( self::WEIGHT_FROM_SHIPPING_DIMS, '', $shipping[ 0 ] );
+        }
+        $this->product_info[ 'shipping_dims' ] = FeedHelper::getDimsInString( $shipping[ 0 ], 'x' );
+    }
+
+    private function formatValueAndPrice( string &$value, int|float &$price ): void
     {
         if (
             preg_match( self::PRICE_IN_OPTION_REGEX, $value, $matches )
-            && isset( $matches[1])
+            && isset( $matches[ 1 ] )
         ) {
-            $price += StringHelper::getFloat( $matches[1] );
+            $price += StringHelper::getFloat( $matches[ 1 ] );
 
             $value = preg_replace(
                 self::PRICE_IN_OPTION_REGEX, '', $value
             );
         }
     }
+
     private function buildChildNameMpnPrice( string $mpn, array $option_values, array $options ): array
     {
         $name = '';
         $price = 0;
 
         foreach ( $option_values as $option_value ) {
-            $this->formatValueAndPrice( $options[$option_value]['value'], $price );
+            $this->formatValueAndPrice( $options[ $option_value ][ 'value' ], $price );
 
-            $this->buildChildName( $name, $options[$option_value] );
+            $this->buildChildName( $name, $options[ $option_value ] );
 
             $mpn .= '-';
             $mpn .= $option_value;
 
         }
 
-        return [$name, $mpn, $price];
+        return [ $name, $mpn, $price ];
     }
 
-    private function buildChildName( &$name, $option ):void
+    private function buildChildName( &$name, $option ): void
     {
-        $name .= $option['name'];
+        $name .= $option[ 'name' ];
         $name .= ': ';
-        $name .= trim( $option['value'], '. ' );
+        $name .= trim( $option[ 'value' ], '. ' );
         $name .= '. ';
     }
 
-    private function childClone( FeedItem $parent_fi, array &$child, string $name, string $mpn, int|float $price): void
+    private function childClone( FeedItem $parent_fi, array &$child, string $name, string $mpn, int|float $price ): void
     {
         $fi = clone $parent_fi;
 
@@ -396,12 +417,12 @@ class Parser extends HtmlParser
 
     public function isGroup(): bool
     {
-        return $this->exists('#options_table');
+        return $this->exists( '#options_table' );
     }
 
     public function getProduct(): string
     {
-        return trim( $this->getAttr( 'meta[property="og:title"]', 'content' ) );
+        return trim( $this->getText( 'span[itemprop="name"]' ) );
     }
 
     public function getMpn(): string
@@ -411,20 +432,22 @@ class Parser extends HtmlParser
 
     public function getDescription(): string
     {
-        if ( !isset( $this->product_info['description'] ) ) {
+        if ( !isset( $this->product_info[ 'description' ] ) ) {
             return '';
         }
 
-        return FeedHelper::cleanProductDescription( $this->product_info['description'] );
+        return FeedHelper::cleanProductDescription( $this->product_info[ 'description' ] );
     }
 
     public function getShortDescription(): array
     {
-        if ( !isset( $this->product_info['shorts'] ) ) {
+        if ( !isset( $this->product_info[ 'shorts' ] ) ) {
             return [];
         }
 
-        return FeedHelper::cleanShortDescription( $this->product_info['shorts'] );
+        return FeedHelper::cleanShortDescription( array_filter( $this->product_info[ 'shorts' ], static function ( $el ) {
+            return !str_ends_with( $el, ':' ) && stripos( $el, 'upload' ) === false;
+        } ) );
     }
 
     public function getCategories(): array
@@ -434,15 +457,15 @@ class Parser extends HtmlParser
 
     public function getImages(): array
     {
-        $images = array_map( static fn($image) => 'https:' . $image , $this->getAttrs( '#altviews a', 'href' ) );
+        $images = array_map( static fn( $image ) => 'https:' . $image, $this->getAttrs( '#altviews a', 'href' ) );
 
         if ( !$images ) {
-            if ( !$this->exists( '#product_photo_zoom_url') ) {
+            if ( !$this->exists( '#product_photo_zoom_url' ) ) {
                 return [];
             }
 
-            $image =   'https:' . $this->getAttr( '#product_photo_zoom_url', 'href' );
-            $images = [$image];
+            $image = 'https:' . $this->getAttr( '#product_photo_zoom_url', 'href' );
+            $images = [ $image ];
         }
 
         return $images;
@@ -450,7 +473,7 @@ class Parser extends HtmlParser
 
     public function getAttributes(): ?array
     {
-        return $this->product_info['attributes'] ?? null;
+        return $this->product_info[ 'attributes' ] ?? null;
     }
 
     public function getCostToUs(): float
@@ -469,9 +492,7 @@ class Parser extends HtmlParser
 
     public function getAvail(): ?int
     {
-        return $this->getAttr( 'meta[itemprop="availability"]', 'content' ) === 'InStock'
-                    ? self::DEFAULT_AVAIL_NUMBER
-                    : 0;
+        return $this->getAttr( 'meta[itemprop="availability"]', 'content' ) === 'InStock' ? self::DEFAULT_AVAIL_NUMBER : 0;
     }
 
     public function getBrand(): ?string
@@ -485,88 +506,87 @@ class Parser extends HtmlParser
 
     public function getDimX(): ?float
     {
-        return $this->product_info['dims']['x'] ?? null;
+        return $this->product_info[ 'dims' ][ 'x' ] ?? null;
     }
 
     public function getDimY(): ?float
     {
-        return $this->product_info['dims']['y'] ?? null;
+        return $this->product_info[ 'dims' ][ 'y' ] ?? null;
     }
 
     public function getDimZ(): ?float
     {
-        return $this->product_info['dims']['z'] ?? null;
+        return $this->product_info[ 'dims' ][ 'z' ] ?? null;
     }
 
     public function getWeight(): ?float
     {
-        return $this->product_info['weight'] ?? null;
+        return $this->product_info[ 'weight' ] ?? null;
     }
 
     public function getShippingDimX(): ?float
     {
-        return $this->product_info['shipping_dims']['x'] ?? null;
+        return $this->product_info[ 'shipping_dims' ][ 'x' ] ?? null;
     }
 
     public function getShippingDimY(): ?float
     {
-        return $this->product_info['shipping_dims']['y'] ?? null;
+        return $this->product_info[ 'shipping_dims' ][ 'y' ] ?? null;
     }
 
     public function getShippingDimZ(): ?float
     {
-        return $this->product_info['shipping_dims']['z'] ?? null;
+        return $this->product_info[ 'shipping_dims' ][ 'z' ] ?? null;
     }
 
     public function getShippingWeight(): ?float
     {
-        return $this->product_info['shipping_weight'] ?? null;
+        return $this->product_info[ 'shipping_weight' ] ?? null;
     }
 
     public function getVideos(): array
     {
-        return $this->product_info['videos'] ?? [];
+        return $this->product_info[ 'videos' ] ?? [];
     }
 
     public function getProductFiles(): array
     {
-        if ( !isset($this->product_info['files'] ) ) {
+        if ( !isset( $this->product_info[ 'files' ] ) ) {
             return [];
         }
-        return array_values( $this->product_info['files'] );
+        return array_values( $this->product_info[ 'files' ] );
     }
 
-    /**
-     * @throws \JsonException
-     */
     public function getChildProducts( FeedItem $parent_fi ): array
     {
         $child = [];
         $options = [];
         $option_groups = [];
 
-        $this->filter( '#options_table select')
+        $this->filter( '#options_table select' )
             ->each( function ( ParserCrawler $select ) use ( &$options, &$option_groups ) {
                 $option_values = [];
 
                 $select->filter( 'option' )
                     ->each( function ( ParserCrawler $option ) use ( &$options, &$option_values, $select ) {
-                        $test =$select->attr( 'title' );
                         if (
                             false === stripos( $option->text(), 'contact us' )
+                            && false === stripos( $option->text(), 'upload' )
+                            && false === stripos( $option->text(), 'custom' )
                             && false === stripos( $select->attr( 'title' ), 'design service' )
+                            && false === stripos( $select->attr( 'title' ), 'help' )
                         ) {
-                            $options[$option->attr( 'value' )] = [
+                            $options[ $option->attr( 'value' ) ] = [
                                 'name' => $select->attr( 'title' ),
                                 'value' => $option->text(),
                             ];
                             $option_values[] = $option->attr( 'value' );
                         }
-                    });
+                    } );
                 if ( $option_values ) {
                     $option_groups[] = $option_values;
                 }
-            });
+            } );
 
         if ( count( $option_groups ) === 0 ) {
             $this->not_group = true;
@@ -577,7 +597,7 @@ class Parser extends HtmlParser
         if ( count( $option_groups ) === 1 ) {
             foreach ( $options as $key => $option ) {
                 $price = 0;
-                $this->formatValueAndPrice( $option['value'], $price );
+                $this->formatValueAndPrice( $option[ 'value' ], $price );
 
                 $name = '';
 
@@ -592,7 +612,7 @@ class Parser extends HtmlParser
             $combination_of_groups = $this->combinations( $option_groups );
 
             foreach ( $combination_of_groups as $option_values ) {
-                [$name, $mpn, $price] = $this->buildChildNameMpnPrice( $this->getMpn(), $option_values, $options );
+                [ $name, $mpn, $price ] = $this->buildChildNameMpnPrice( $this->getMpn(), $option_values, $options );
 
                 $this->childClone( $parent_fi, $child, $name, $mpn, $price );
             }
