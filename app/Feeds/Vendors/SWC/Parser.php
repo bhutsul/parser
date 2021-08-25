@@ -186,6 +186,9 @@ class Parser extends HtmlParser
             else if ( preg_match( self::DIMS_REGEXES[ 'width' ], $text, $width ) ) {
                 $this->product_info[ 'dims' ][ 'x' ] = StringHelper::getFloat( $width[ 1 ] );
             }
+            else if ( str_ends_with( $text, '" width' ) ) {
+                $this->product_info[ 'dims' ][ 'x' ] = StringHelper::getFloat( $text );
+            }
             else if ( preg_match( self::DIMS_REGEXES[ 'weight' ], $text, $weight ) ) {
                 $this->product_info[ 'weight' ] = false !== stripos( $weight[ 1 ], "oz" )
                     ? FeedHelper::convertLbsFromOz( StringHelper::getFloat( $weight[ 1 ] ) )
