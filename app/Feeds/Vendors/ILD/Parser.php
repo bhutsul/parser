@@ -79,7 +79,6 @@ class Parser extends HtmlParser
         string &$mpn,
         int|float|string &$price
     ): void {
-
         $option[ 'value' ] = preg_replace( self::PRICE_IN_OPTION_REGEX, '', $option[ 'value' ] );
         $option[ 'name' ] = preg_replace( self::PRICE_IN_OPTION_REGEX, '',  $option[ 'name' ] );
 
@@ -195,12 +194,34 @@ class Parser extends HtmlParser
         }
     }
 
+    private function pushShortsAndAttributesAndDescription(): void
+    {
+        if ( !$this->exists( '.content .description') ) {
+            return;
+        }
+
+        if ( $this->exists( '.content .description ul' ) ) {
+            $data = FeedHelper::getShortsAndAttributesInList( $this->getHtml( '.content .description ul' ) );
+        }
+
+        $data = FeedHelper::getShortsAndAttributesInDescription( $this->getHtml( '.content .description' ), [], $data[ 'short_description' ] ?? [], $data[ 'attributes' ] ?? [] );
+
+        $this->product_info[ 'attributes' ] = $data[ 'attributes' ];
+        $this->product_info[ 'description' ] = preg_replace( [
+            '/<ul\b[^>]*>(.*?)<\/ul>/is',
+        ], '', $data[ 'description' ] );
+        $this->product_info[ 'short_description' ] = $data[ 'short_description' ];
+    }
+
     /**
      * @throws \JsonException
      */
     public function beforeParse(): void
     {
+        $this->pushShortsAndAttributesAndDescription();
+
         $this->pushDataFromSpecsTable();
+
         $this->pushDataFromMagentoScripts();
     }
 
@@ -226,16 +247,17 @@ class Parser extends HtmlParser
 
     public function getDescription(): string
     {
-        if ( !$this->exists( '.content .description') ) {
-            return '';
-        }
-
-        return FeedHelper::cleanProductDescription( $this->getHtml( '.content .description') );
+        return $this->product_info[ 'description' ] ?? '';
     }
 
     public function getShortDescription(): array
     {
-        return FeedHelper::cleanShortDescription( $this->getContent( '[itemprop="description"] p' ) );
+        return $this->product_info[ 'short_description' ] ?? [];
+    }
+
+    public function getAttributes(): ?array
+    {
+        return $this->product_info[ 'attributes' ] ?? null;
     }
 
     public function getCategories(): array
@@ -260,11 +282,6 @@ class Parser extends HtmlParser
                 )
             ),
         );
-    }
-
-    public function getAttributes(): ?array
-    {
-        return $this->product_info[ 'attributes' ] ?? null;
     }
 
     public function getCostToUs(): float
