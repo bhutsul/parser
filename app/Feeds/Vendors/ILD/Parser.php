@@ -79,15 +79,9 @@ class Parser extends HtmlParser
         string &$mpn,
         int|float|string &$price
     ): void {
-        if (
-            preg_match( self::PRICE_IN_OPTION_REGEX, $option[ 'value' ], $matches )
-            && isset( $matches[ 1 ] )
-        ) {
 
-            $option[ 'value' ] = preg_replace(
-                self::PRICE_IN_OPTION_REGEX, '', $option[ 'value' ]
-            );
-        }
+        $option[ 'value' ] = preg_replace( self::PRICE_IN_OPTION_REGEX, '', $option[ 'value' ] );
+        $option[ 'name' ] = preg_replace( self::PRICE_IN_OPTION_REGEX, '',  $option[ 'name' ] );
 
         $name .= $option[ 'name' ];
         $name .= ': ';
