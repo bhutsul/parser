@@ -10,8 +10,25 @@ use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
 {
-    private array $product_info;
     public const PRICE_IN_OPTION_REGEX = '/[\s]?[\+]?[\s]?\$(\d+[\,]?[\.]?\d*[\,]?[\.]?\d*?)/u';
+    public const COMMON_DIMS_REGEX = '(\d+[\.]?\d*)[\',",″]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[\',",″]?[\s]?[x,X]?[\s]?(:?\d+[\.]?\d*)?[\',",″]?';
+    public const DIMENSIONS = [
+        'common' => '/'. self::COMMON_DIMS_REGEX .'/i',
+        'measures' => '/Measures[\s]?'. self::COMMON_DIMS_REGEX .'/i',
+        'HLW' => '/(\d+[\.]?\d*)[\',",″]?[\s]?H[\s]?[x,X][\s]?(\d+[\.]?\d*)[\',",″]?[\s]?L[\s]?[x,X]?[\s]?(:?\d+[\.]?\d*)?[\',",″]?[\s]?[W]?/i',
+        'LWH' => '/(\d+[\.]?\d*)[\',",″]?[\s]?L[\s]?[x,X][\s]?(\d+[\.]?\d*)[\',",″]?[\s]?W[\s]?[x,X]?[\s]?(:?\d+[\.]?\d*)?[\',",″]?[\s]?[H]?/i',
+        'HW' => '/(\d+[\.]?\d*)[\',",″]?[\s]?H[\s]?[x,X,\;][\s]?(\d+[\.]?\d*)[\',",″]?[\s]?W/i',
+        'WL' => '/(\d+[\.]?\d*)[\',",″]?[\s]?W[\s]?[x,X,\;][\s]?(\d+[\.]?\d*)[\',",″]?[\s]?L/i',
+        'WT' => '/(\d+[\.]?\d*)[\',",″]?[\s]?W[\s]?[x,X,\;][\s]?(\d+[\.]?\d*)[\',",″]?[\s]?T/i',
+        'H' => '/(\d+[\.]?\d*)[\',",″]?[\s]?H/i',
+        'W' => '/(\d+[\.]?\d*)[\',",″]?[\s]?W/i',
+        'L' => '/(\d+[\.]?\d*)[\',",″]?[\s]?L/i',
+        'cover' => '/Cover[:]?[\s]?'. self::COMMON_DIMS_REGEX .'/i',
+        'sq' => '/(\d+[\.]?\d*)[\',",″]?[\s]?sq/i',
+    ];
+
+    private array $product_info;
+    private bool $not_valid = false;
 
     private function combinations( array $arrays, int $i = 0 )
     {
@@ -179,13 +196,67 @@ class Parser extends HtmlParser
             $this->filter( '#product-attribute-specs-table tbody tr' )
                 ->each( function ( ParserCrawler $c ) {
                     $key   = $c->getText( 'th' );
-                    $value = $c->getText( 'td' );
+                    $value = str_replace('”', "", $c->getText( 'td' ));
+                    $separator = 'x';
 
                     if ( false !== strripos( $key, 'brand' ) ) {
                         $this->product_info[ 'brand' ] = $value;
                     }
                     else if ( false !== strripos( $key, 'item weight' ) ) {
                         $this->product_info[ 'weight' ] = StringHelper::getFloat( $value );
+                    }
+                    else if (
+                        preg_match( self::DIMENSIONS[ 'common' ], $value )
+                        || preg_match( self::DIMENSIONS[ 'cover' ], $value )
+                        || preg_match( self::DIMENSIONS[ 'measures' ], $value )
+                    ) {
+                        $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, $separator );
+                    }
+                    else if ( preg_match( self::DIMENSIONS[ 'HLW' ], $value ) ) {
+                        $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, $separator, 2, 0, 1 );
+                    }
+                    else if ( preg_match( self::DIMENSIONS[ 'LWH' ], $value ) ) {
+                        $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, $separator,1,2, 0);
+                    }
+                    else if ( preg_match( self::DIMENSIONS[ 'HW' ], $value ) ) {
+                        if ( str_contains( $value, ';' ) ) {
+                            $separator = ';';
+                        }
+                        $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, $separator, 1, 0);
+                    }
+                    else if ( preg_match( self::DIMENSIONS[ 'WL' ], $value ) ) {
+                        if ( str_contains( $value, ';' ) ) {
+                            $separator = ';';
+                        }
+                        $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, $separator, 0, 2,1);
+                    }
+                    else if ( preg_match( self::DIMENSIONS[ 'WT' ], $value ) ) {
+                        if ( str_contains( $value, ';' ) ) {
+                            $separator = ';';
+                        }
+                        $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, $separator );
+                    }
+                    else if (
+                        preg_match( self::DIMENSIONS[ 'H' ], $value, $h )
+                        && isset( $h[ 1 ], $h[ 0 ] ) && strlen( $value ) === strlen( $h[ 0 ] )
+                    ) {
+                        $this->product_info[ 'dims' ][ 'y' ] = StringHelper::getFloat( $value );
+                    }
+                    else if (
+                        preg_match( self::DIMENSIONS[ 'W' ], $value, $w )
+                        && isset( $w[ 1 ], $w[ 0 ] ) && strlen( $value ) === strlen( $w[ 0 ] )
+                    ) {
+                        $this->product_info[ 'dims' ][ 'x' ] = StringHelper::getFloat( $value );
+                    }
+                    else if (
+                        preg_match( self::DIMENSIONS[ 'L' ], $value, $l )
+                        && isset( $l[ 1 ], $l[ 0 ] ) && strlen( $value ) === strlen( $l[ 0 ] )
+                    ) {
+                        $this->product_info[ 'dims' ][ 'z' ] = StringHelper::getFloat( $value );
+                    }
+                    else if ( preg_match( self::DIMENSIONS[ 'sq' ], $value, $sq ) ) {
+                        $this->product_info[ 'dims' ][ 'x' ] = $sq[1];
+                        $this->product_info[ 'dims' ][ 'y' ] = $sq[1];
                     }
                     else if ( false === strripos( $key, 'wholesale pricing' ) ) {
                         $this->product_info[ 'attributes' ][ $key ] = $value;
@@ -213,11 +284,29 @@ class Parser extends HtmlParser
         $this->product_info[ 'short_description' ] = $data[ 'short_description' ];
     }
 
+    private function validateItem(): void
+    {
+        if ( $this->exists( '#product-options-wrapper input[type="text"]' ) ) {
+            $this->filter( '#product-options-wrapper input[type="text"]' )
+                ->each( function ( ParserCrawler $c ) {
+                    if ( false !== stripos( $c->parents()->parents()->attr( 'class' ), 'required' ) ) {
+                        $this->not_valid = true;
+                    }
+                });
+        }
+    }
+
     /**
      * @throws \JsonException
      */
     public function beforeParse(): void
     {
+        $this->validateItem();
+
+        if ( $this->not_valid ) {
+            return;
+        }
+
         $this->pushShortsAndAttributesAndDescription();
 
         $this->pushDataFromSpecsTable();
@@ -227,6 +316,10 @@ class Parser extends HtmlParser
 
     public function isGroup(): bool
     {
+        if ( $this->not_valid ) {
+            return false;
+        }
+
         return $this->exists( '#product-options-wrapper' );
     }
 
@@ -267,6 +360,10 @@ class Parser extends HtmlParser
 
     public function getImages(): array
     {
+        if ( $this->not_valid ) {
+            return [];
+        }
+
         if ( !isset( $this->product_info[ 'images' ] ) ) {
             return [];
         }
@@ -286,6 +383,10 @@ class Parser extends HtmlParser
 
     public function getCostToUs(): float
     {
+        if ( $this->not_valid ) {
+            return 0;
+        }
+
         return StringHelper::getMoney( $this->getAttr( 'meta[property="product:price:amount"]', 'content' )  );
     }
 
