@@ -11,6 +11,7 @@ use App\Helpers\StringHelper;
 class Parser extends HtmlParser
 {
     private array $product_info;
+    public const PRICE_IN_OPTION_REGEX = '/[\s]?[\+]?[\s]?\$(\d+[\,]?[\.]?\d*[\,]?[\.]?\d*?)/u';
 
     private function combinations( array $arrays, int $i = 0 )
     {
@@ -37,13 +38,17 @@ class Parser extends HtmlParser
         return $result;
     }
 
-    private function childClone( FeedItem $parent_fi, array &$child, string $name, string $mpn, int|float $price ): void
-    {
+    private function childClone(
+        FeedItem $parent_fi,
+        array &$child,
+        string $name,
+        string $mpn,
+        int|float $price
+    ): void {
         $fi = clone $parent_fi;
 
         $fi->setProduct( $name );
         $fi->setCostToUs( $this->getCostToUs() + $price );
-        $fi->setListPrice( null );
         $fi->setRAvail( $this->getAvail() );
 
         $fi->setDimX( $this->getDimX() );
@@ -74,10 +79,20 @@ class Parser extends HtmlParser
         string &$mpn,
         int|float|string &$price
     ): void {
+        if (
+            preg_match( self::PRICE_IN_OPTION_REGEX, $option[ 'value' ], $matches )
+            && isset( $matches[ 1 ] )
+        ) {
+
+            $option[ 'value' ] = preg_replace(
+                self::PRICE_IN_OPTION_REGEX, '', $option[ 'value' ]
+            );
+        }
+
         $name .= $option[ 'name' ];
         $name .= ': ';
         $name .= trim( $option[ 'value' ], '. ' );
-        $name .= '. price' . $option[ 'price' ] . '. ';
+        $name .= '. ';
 
         $mpn .= '-';
         $mpn .= $option[ 'id' ];
@@ -96,7 +111,6 @@ class Parser extends HtmlParser
         $option_groups = [];
 
         if ( isset( $this->product_info[ 'swatch' ][ 'attributes' ] ) ) {
-
             foreach ( $this->product_info[ 'swatch' ][ 'attributes' ] as $attribute ) {
                 $option_values = [];
 
@@ -118,29 +132,55 @@ class Parser extends HtmlParser
 
         $this->filter( '#product-options-wrapper select' )
             ->each( function ( ParserCrawler $select ) use ( &$options, &$option_groups ) {
-                $option_values = [];
+                if ( false !== stripos( $select->attr( 'class' ), 'required' ) ) {
+                    $option_values = [];
 
-                $select->filter( 'option' )
-                    ->each( function ( ParserCrawler $option ) use ( &$options, &$option_values, $select ) {
-                        if ( $option->attr( 'value' ) ) {
-                            $options[ $option->attr( 'value' ) ] = [
-                                'name' => $this->getText( 'label[for="'. $select->attr( 'id' ) .'"]' ),
-                                'value' => $option->text(),
-                                'price' => $option->attr( 'price' ),
-                                'id' => $option->attr( 'value' ),
-                            ];
-                            $option_values[] = $option->attr( 'value' );
-                        }
-                    } );
-                if ( $option_values ) {
-                    $option_groups[] = $option_values;
+                    $select->filter( 'option' )
+                        ->each( function ( ParserCrawler $option ) use ( &$options, &$option_values, $select ) {
+                            if ( $option->attr( 'value' ) ) {
+                                $options[ $option->attr( 'value' ) ] = [
+                                    'name' => $this->getText( 'label[for="'. $select->attr( 'id' ) .'"]' ),
+                                    'value' => $option->text(),
+                                    'price' => $option->attr( 'price' ),
+                                    'id' => $option->attr( 'value' ),
+                                ];
+                                $option_values[] = $option->attr( 'value' );
+                            }
+                        } );
+                    if ( $option_values ) {
+                        $option_groups[] = $option_values;
+                    }
                 }
             } );
 
         return [ $options, $option_groups ];
     }
 
-    public function beforeParse(): void
+    /**
+     * @throws \JsonException
+     */
+    private function pushDataFromMagentoScripts(): void
+    {
+        preg_match_all('/<script type="text\/x-magento-init">\s*({.*?})\s*</s', $this->node->html(), $matches );
+
+        if ( isset( $matches[1] ) ) {
+            foreach ( $matches[1] as $script ) {
+                $json = json_decode($script, true, 512, JSON_THROW_ON_ERROR);
+
+                if ( isset( $json[ '[data-gallery-role=gallery-placeholder]' ][ 'mage/gallery/gallery' ] ) ) {
+                    $this->product_info[ 'images' ] = $json[ '[data-gallery-role=gallery-placeholder]' ][ 'mage/gallery/gallery' ][ 'data' ];
+                }
+                else if ( isset( $json[ '[data-gallery-role=gallery-placeholder]' ][ 'Magento_ProductVideo/js/fotorama-add-video-events' ] ) ) {
+                    $this->product_info[ 'videos' ] = $json[ '[data-gallery-role=gallery-placeholder]' ][ 'Magento_ProductVideo/js/fotorama-add-video-events' ][ 'videoData' ];
+                }
+                else if ( isset( $json[ '[data-role=swatch-options]' ][ 'Luxinten_Catalog/js/swatch-renderer-rewrite' ][ 'jsonConfig' ] ) ) {
+                    $this->product_info[ 'swatch' ] = $json[ '[data-role=swatch-options]' ][ 'Luxinten_Catalog/js/swatch-renderer-rewrite' ][ 'jsonConfig' ];
+                }
+            }
+        }
+    }
+
+    private function pushDataFromSpecsTable(): void
     {
         if ( $this->exists( '#product-attribute-specs-table tbody' ) ) {
             $this->filter( '#product-attribute-specs-table tbody tr' )
@@ -148,27 +188,26 @@ class Parser extends HtmlParser
                     $key   = $c->getText( 'th' );
                     $value = $c->getText( 'td' );
 
-                    $this->product_info['attributes'][$key] = $value;
+                    if ( false !== strripos( $key, 'brand' ) ) {
+                        $this->product_info[ 'brand' ] = $value;
+                    }
+                    else if ( false !== strripos( $key, 'item weight' ) ) {
+                        $this->product_info[ 'weight' ] = StringHelper::getFloat( $value );
+                    }
+                    else if ( false === strripos( $key, 'wholesale pricing' ) ) {
+                        $this->product_info[ 'attributes' ][ $key ] = $value;
+                    }
                 });
         }
+    }
 
-        preg_match_all('/<script type="text\/x-magento-init">\s*({.*?})\s*</s', $this->node->html(), $matches );
-
-        if ( isset( $matches[1] ) ) {
-            foreach ( $matches[1] as $script ) {
-                $json = json_decode( $script, true );
-
-                if ( isset( $json[ '[data-gallery-role=gallery-placeholder]' ][ 'mage/gallery/gallery' ] ) ) {
-                    $this->product_info[ 'images' ] = $json[ '[data-gallery-role=gallery-placeholder]' ][ 'mage/gallery/gallery' ][ 'data' ];
-                }
-                else if ( isset( $json[ '[data-gallery-role=gallery-placeholder]' ][ 'Magento_ProductVideo/js/fotorama-add-video-events' ] ) ) {
-                    $this->product_info[ 'video' ] = $json[ '[data-gallery-role=gallery-placeholder]' ][ 'Magento_ProductVideo/js/fotorama-add-video-events' ][ 'videoData' ];
-                }
-                else if ( isset( $json[ '[data-role=swatch-options]' ][ 'Luxinten_Catalog/js/swatch-renderer-rewrite' ][ 'jsonConfig' ] ) ) {
-                    $this->product_info[ 'swatch' ] = $json[ '[data-role=swatch-options]' ][ 'Luxinten_Catalog/js/swatch-renderer-rewrite' ][ 'jsonConfig' ];
-                }
-            }
-        }
+    /**
+     * @throws \JsonException
+     */
+    public function beforeParse(): void
+    {
+        $this->pushDataFromSpecsTable();
+        $this->pushDataFromMagentoScripts();
     }
 
     public function isGroup(): bool
@@ -184,6 +223,11 @@ class Parser extends HtmlParser
     public function getMpn(): string
     {
         return $this->getText( 'div[itemprop="sku"]' );
+    }
+
+    public function getBrand(): ?string
+    {
+        return $this->product_info[ 'brand' ] ?? null;
     }
 
     public function getDescription(): string
@@ -217,7 +261,8 @@ class Parser extends HtmlParser
                     array_map(
                         static fn( $image ) => $image[ 'full' ],
                             $this->product_info[ 'images' ]
-                    )
+                    ),
+                    static fn( $image ) => $image !== null && false === stripos( $image, 'placeholder' )
                 )
             ),
         );
@@ -230,7 +275,7 @@ class Parser extends HtmlParser
 
     public function getCostToUs(): float
     {
-        return StringHelper::getMoney( $this->getText( 'span[itemprop="price"]' ) );
+        return StringHelper::getMoney( $this->getAttr( 'meta[property="product:price:amount"]', 'content' )  );
     }
 
     public function getAvail(): ?int
@@ -258,17 +303,22 @@ class Parser extends HtmlParser
         return $this->product_info[ 'weight' ] ?? null;
     }
 
-//    public function getVideos(): array
-//    {
-//        return $this->product_info[ 'videos' ] ?? [];
-//    }
-
-    public function getProductFiles(): array
+    public function getVideos(): array
     {
-        if ( !isset( $this->product_info[ 'files' ] ) ) {
+        if ( !isset( $this->product_info[ 'videos' ] ) ) {
             return [];
         }
-        return array_values( $this->product_info[ 'files' ] );
+
+        return array_values(
+            array_filter(
+                array_map( fn( $video ) => [
+                    'name' => $this->getProduct(),
+                    'provider' => 'youtube',
+                    'video' => $video[ 'videoUrl' ]
+                ], $this->product_info[ 'videos' ] ),
+                static fn( $video ) => $video[ 'video' ] !== null
+            )
+        );
     }
 
     public function getChildProducts( FeedItem $parent_fi ): array
