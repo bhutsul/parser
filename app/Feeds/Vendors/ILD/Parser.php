@@ -20,6 +20,7 @@ class Parser extends HtmlParser
         'HW' => '/(\d+[\.]?\d*)[\',",″]?[\s]?H[\s]?[x,X,\;][\s]?(\d+[\.]?\d*)[\',",″]?[\s]?W/i',
         'WL' => '/(\d+[\.]?\d*)[\',",″]?[\s]?W[\s]?[x,X,\;][\s]?(\d+[\.]?\d*)[\',",″]?[\s]?L/i',
         'WT' => '/(\d+[\.]?\d*)[\',",″]?[\s]?W[\s]?[x,X,\;][\s]?(\d+[\.]?\d*)[\',",″]?[\s]?T/i',
+        'WH' => '/(\d+[\.]?\d*)[\',",″]?[\s]?W[\s]?[x,X,\;][\s]?(\d+[\.]?\d*)[\',",″]?[\s]?H/i',
         'H' => '/(\d+[\.]?\d*)[\',",″]?[\s]?H/i',
         'W' => '/(\d+[\.]?\d*)[\',",″]?[\s]?W/i',
         'L' => '/(\d+[\.]?\d*)[\',",″]?[\s]?L/i',
@@ -60,13 +61,15 @@ class Parser extends HtmlParser
         array &$child,
         string $name,
         string $mpn,
-        int|float $price
+        int|float $price,
+        null|array $images
     ): void {
         $fi = clone $parent_fi;
 
         $fi->setProduct( $name );
         $fi->setCostToUs( $this->getCostToUs() + $price );
         $fi->setRAvail( $this->getAvail() );
+        $fi->setImages( $images ?? $this->getImages() );
 
         $fi->setDimX( $this->getDimX() );
         $fi->setDimY( $this->getDimY() );
@@ -79,15 +82,21 @@ class Parser extends HtmlParser
         $child[] = $fi;
     }
 
-    private function getChildNameAndMpnAndPriceInGroup( array $option_values, array $options ): array
+    private function getChildNameAndMpnAndPriceAndImagesInGroup( array $option_values, array $options ): array
     {
+        $images = [];
+
         [ $name, $mpn, $price ] = $this->getDefaultNameMpnPrice();
 
         foreach ( $option_values as $option_value ) {
-           $this->prepareNameAndMpnAndPrice( $options[$option_value], $name, $mpn, $price );
+           $this->prepareNameAndMpnAndPrice( $options[ $option_value ], $name, $mpn, $price );
+
+            if ( isset( $option[ 'images' ] ) ) {
+                $images = array_merge( $options[ $option_value ][ 'images' ], $images );
+            }
         }
 
-        return [ $name, $mpn, $price ];
+        return [ $name, $mpn, $price, $images ? $this->formattedImages( $images ) : null ];
     }
 
     private function prepareNameAndMpnAndPrice(
@@ -97,7 +106,7 @@ class Parser extends HtmlParser
         int|float|string &$price
     ): void {
         $option[ 'value' ] = preg_replace( self::PRICE_IN_OPTION_REGEX, '', $option[ 'value' ] );
-        $option[ 'name' ] = preg_replace( self::PRICE_IN_OPTION_REGEX, '',  $option[ 'name' ] );
+        $option[ 'name' ] = preg_replace( [self::PRICE_IN_OPTION_REGEX, '/Select /'], '',  $option[ 'name' ] );
 
         $name .= $option[ 'name' ];
         $name .= ': ';
@@ -115,29 +124,51 @@ class Parser extends HtmlParser
         return [ '', $this->getMpn(), 0 ];
     }
 
+    private function pushToOptionsFromScriptData( array &$options, array &$option_groups, array $script_options ): void
+    {
+        foreach ( $script_options[ 'attributes' ] as $attribute ) {
+            $option_values = [];
+
+            foreach ( $attribute[ 'options' ] as $option ) {
+                $options[ $option[ 'id' ] ] = [
+                    'name' => $attribute[ 'label' ],
+                    'value' => $option[ 'label' ],
+                    'price' => 0,
+                    'id' => $option[ 'id' ],
+                ];
+
+                if ( isset( $script_options[ 'index' ] ) ) {
+                    foreach ( $script_options[ 'index' ] as $key => $options_index) {
+                        if (
+                            isset( $options_index[ $attribute[ 'id' ] ], $script_options[ 'images' ][ $key ] )
+                            && $options_index[ $attribute[ 'id' ] ] === $option[ 'id' ]
+                        ) {
+                            $options[ $option[ 'id' ] ][ 'images' ] = $script_options[ 'images' ][ $key ];
+
+                            break;
+                        }
+                    }
+                }
+                $option_values[] = $option[ 'id' ];
+            }
+
+            if ( $option_values ) {
+                $option_groups[] = $option_values;
+            }
+        }
+    }
+
     private function getOptionsAndGroups(): array
     {
         $options = [];
         $option_groups = [];
 
-        if ( isset( $this->product_info[ 'swatch' ][ 'attributes' ] ) ) {
-            foreach ( $this->product_info[ 'swatch' ][ 'attributes' ] as $attribute ) {
-                $option_values = [];
+        if ( isset( $this->product_info[ 'super_options' ] ) ) {
+           $this->pushToOptionsFromScriptData( $options, $option_groups, $this->product_info[ 'super_options' ] );
+        }
 
-                foreach ( $attribute[ 'options' ] as $option ) {
-                    $options[ $option[ 'id' ] ] = [
-                        'name' => $attribute[ 'label' ],
-                        'value' => $option[ 'label' ],
-                        'price' => 0,
-                        'id' => $option[ 'id' ],
-                    ];
-                    $option_values[] = $option[ 'id' ];
-                }
-
-                if ( $option_values ) {
-                    $option_groups[] = $option_values;
-                }
-            }
+        if ( isset( $this->product_info[ 'swatch' ] ) ) {
+            $this->pushToOptionsFromScriptData( $options, $option_groups, $this->product_info[ 'swatch' ] );
         }
 
         $this->filter( '#product-options-wrapper select' )
@@ -166,6 +197,18 @@ class Parser extends HtmlParser
         return [ $options, $option_groups ];
     }
 
+    private function formattedImages( array $images ): array
+    {
+        return array_values(
+            array_unique(
+                array_filter(
+                    array_map(static fn( $image ) => $image[ 'full' ], $images ),
+                        static fn( $image ) => $image !== null && false === stripos( $image, 'placeholder' )
+                )
+            ),
+        );
+    }
+
     /**
      * @throws \JsonException
      */
@@ -186,6 +229,9 @@ class Parser extends HtmlParser
                 else if ( isset( $json[ '[data-role=swatch-options]' ][ 'Luxinten_Catalog/js/swatch-renderer-rewrite' ][ 'jsonConfig' ] ) ) {
                     $this->product_info[ 'swatch' ] = $json[ '[data-role=swatch-options]' ][ 'Luxinten_Catalog/js/swatch-renderer-rewrite' ][ 'jsonConfig' ];
                 }
+                else if ( isset( $json[ '#product_addtocart_form' ][ 'configurable' ][ 'spConfig' ][ 'attributes' ] ) ) {
+                    $this->product_info[ 'super_options' ] = $json[ '#product_addtocart_form' ][ 'configurable' ][ 'spConfig' ];
+                }
             }
         }
     }
@@ -199,7 +245,13 @@ class Parser extends HtmlParser
                     $value = str_replace('”', "", $c->getText( 'td' ));
                     $separator = 'x';
 
-                    if ( false !== strripos( $key, 'brand' ) ) {
+                    if (
+                        false !== strripos( $value, 'chain' )
+                        || false !== strripos( $value, 'bow' )
+                    ) {
+                        $this->product_info[ 'attributes' ][ $key ] = $value;
+                    }
+                    else if ( false !== strripos( $key, 'brand' ) ) {
                         $this->product_info[ 'brand' ] = $value;
                     }
                     else if ( false !== strripos( $key, 'item weight' ) ) {
@@ -212,7 +264,8 @@ class Parser extends HtmlParser
                     ) {
                         $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, $separator );
                     }
-                    else if ( preg_match( self::DIMENSIONS[ 'HLW' ], $value ) ) {
+                    else if ( preg_match( self::DIMENSIONS[ 'HLW' ], $value )
+                    ) {
                         $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, $separator, 2, 0, 1 );
                     }
                     else if ( preg_match( self::DIMENSIONS[ 'LWH' ], $value ) ) {
@@ -230,7 +283,10 @@ class Parser extends HtmlParser
                         }
                         $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, $separator, 0, 2,1);
                     }
-                    else if ( preg_match( self::DIMENSIONS[ 'WT' ], $value ) ) {
+                    else if (
+                        preg_match( self::DIMENSIONS[ 'WT' ], $value )
+                        || preg_match( self::DIMENSIONS[ 'WH' ], $value )
+                    ) {
                         if ( str_contains( $value, ';' ) ) {
                             $separator = ';';
                         }
@@ -368,17 +424,7 @@ class Parser extends HtmlParser
             return [];
         }
 
-        return array_values(
-            array_unique(
-                array_filter(
-                    array_map(
-                        static fn( $image ) => $image[ 'full' ],
-                            $this->product_info[ 'images' ]
-                    ),
-                    static fn( $image ) => $image !== null && false === stripos( $image, 'placeholder' )
-                )
-            ),
-        );
+        return $this->formattedImages( $this->product_info[ 'images' ] );
     }
 
     public function getCostToUs(): float
@@ -443,18 +489,22 @@ class Parser extends HtmlParser
             foreach ( $options as $option ) {
                 [ $name, $mpn, $price ] = $this->getDefaultNameMpnPrice();
 
+                if ( isset( $option[ 'images' ] ) ) {
+                    $images = $this->formattedImages( $option[ 'images' ] );
+                }
+
                 $this->prepareNameAndMpnAndPrice( $option, $name, $mpn, $price );
 
-                $this->childClone( $parent_fi, $child, $name, $mpn, $price );
+                $this->childClone( $parent_fi, $child, $name, $mpn, $price, $images ?? null );
             }
         }
         else {
             $combination_of_groups = $this->combinations( $option_groups );
 
             foreach ( $combination_of_groups as $option_values ) {
-                [ $name, $mpn, $price ] = $this->getChildNameAndMpnAndPriceInGroup( $option_values, $options );
+                [ $name, $mpn, $price, $images ] = $this->getChildNameAndMpnAndPriceAndImagesInGroup( $option_values, $options );
 
-                $this->childClone( $parent_fi, $child, $name, $mpn, $price );
+                $this->childClone( $parent_fi, $child, $name, $mpn, $price, $images );
             }
         }
 
