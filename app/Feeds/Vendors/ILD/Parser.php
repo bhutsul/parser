@@ -350,6 +350,12 @@ class Parser extends HtmlParser
                     }
                 });
         }
+        if (
+            $this->exists( '#product-addtocart-button' )
+            && false !== stripos( $this->getText( '#product-addtocart-button' ), 'Personalize It' )
+        ) {
+            $this->not_valid = true;
+        }
     }
 
     /**
