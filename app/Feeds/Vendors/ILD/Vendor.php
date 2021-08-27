@@ -8,9 +8,6 @@ use App\Feeds\Processor\SitemapHttpProcessor;
 class Vendor extends SitemapHttpProcessor
 {
     protected array $first = ['https://ivylanedesign.com/sitemap.xml'];
-    public array $custom_products = [
-        'https://ivylanedesign.com/bride-long-sleeve-top.html'
-    ];
 
     /**
      * @param FeedItem $fi
