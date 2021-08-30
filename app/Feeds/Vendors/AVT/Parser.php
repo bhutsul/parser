@@ -87,7 +87,7 @@ class Parser extends HtmlParser
                 $this->filter('pre[data-hook="description"] p')
                     ->each( function ( ParserCrawler $c ) {
                         if ( $c->text() ) {
-                            if ( str_contains( $c->text(), ':' ) ) {
+                            if ( str_contains( $c->text(), ':' ) && false === stripos( $c->text(), 'Upgraded mechanical construction kit of rally') ) {
                                 [$key, $value] = explode( ':', $c->text(), 2 );
 
                                 if ( $value ) {
