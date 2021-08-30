@@ -130,26 +130,28 @@ class Parser extends HtmlParser
             $option_values = [];
 
             foreach ( $attribute[ 'options' ] as $option ) {
-                $options[ $option[ 'id' ] ] = [
-                    'name' => $attribute[ 'label' ],
-                    'value' => $option[ 'label' ],
-                    'price' => 0,
-                    'id' => $option[ 'id' ],
-                ];
+                if ($option['products']) {
+                    $options[ $option[ 'id' ] ] = [
+                        'name' => $attribute[ 'label' ],
+                        'value' => $option[ 'label' ],
+                        'price' => 0,
+                        'id' => $option[ 'id' ],
+                    ];
 
-                if ( isset( $script_options[ 'index' ] ) ) {
-                    foreach ( $script_options[ 'index' ] as $key => $options_index) {
-                        if (
-                            isset( $options_index[ $attribute[ 'id' ] ], $script_options[ 'images' ][ $key ] )
-                            && $options_index[ $attribute[ 'id' ] ] === $option[ 'id' ]
-                        ) {
-                            $options[ $option[ 'id' ] ][ 'images' ] = $script_options[ 'images' ][ $key ];
+                    if ( isset( $script_options[ 'index' ] ) ) {
+                        foreach ( $script_options[ 'index' ] as $key => $options_index) {
+                            if (
+                                isset( $options_index[ $attribute[ 'id' ] ], $script_options[ 'images' ][ $key ] )
+                                && $options_index[ $attribute[ 'id' ] ] === $option[ 'id' ]
+                            ) {
+                                $options[ $option[ 'id' ] ][ 'images' ] = $script_options[ 'images' ][ $key ];
 
-                            break;
+                                break;
+                            }
                         }
                     }
+                    $option_values[] = $option[ 'id' ];
                 }
-                $option_values[] = $option[ 'id' ];
             }
 
             if ( $option_values ) {

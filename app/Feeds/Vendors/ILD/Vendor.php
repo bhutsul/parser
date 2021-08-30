@@ -9,6 +9,8 @@ class Vendor extends SitemapHttpProcessor
 {
     protected array $first = ['https://ivylanedesign.com/sitemap.xml'];
 
+    public array $custom_products = ['https://ivylanedesign.com/bud-vase-favors.html'];
+
     /**
      * @param FeedItem $fi
      * @return bool
