@@ -129,7 +129,7 @@ class Parser extends HtmlParser
      */
     public function beforeParse(): void
     {
-        for ( $i = 0; $i <= 1; $i ++ ) {
+        for ( $i = 0; $i <= 10; $i ++ ) {
             if ( $this->exists( '#wix-warmup-data' ) ) {
                 $warmup_data = json_decode( $this->getText( '#wix-warmup-data' ), true, 512, JSON_THROW_ON_ERROR );
 
