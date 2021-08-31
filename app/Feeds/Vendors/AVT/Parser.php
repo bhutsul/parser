@@ -157,9 +157,7 @@ class Parser extends HtmlParser
 
     public function getDescription(): string
     {
-        return isset( $this->product_info[ 'description' ] )
-                ? trim( $this->replaceByRegex( $this->product_info[ 'description' ] ), " \t\n\r\0\x0B-" )
-                : '';
+        return isset( $this->product_info[ 'description' ] ) ? trim( $this->replaceByRegex( $this->product_info[ 'description' ] ), " \t\n\r\0\x0B-" ) : '';
     }
 
     public function getShortDescription(): array
