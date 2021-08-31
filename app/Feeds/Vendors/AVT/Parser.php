@@ -13,8 +13,8 @@ class Parser extends HtmlParser
     public const YOUTUBE_REPLACE_REGEX = 'Watch these tips before starting[:]?[\s]?' . self::YOUTUBE_REGEX;
     public const COMMON_DIMS_REGEX = '(\d+[\.]?\d*)[\',",″]?[\s]?\*[\s]?(\d+[\.]?\d*)[\',",″]?[\s]?\*[\s]?(:?\d+[\.]?\d*)?[\',",″]?[\s]?(in)?[\.]?';
     public const DIMENSIONS = [
-        'shipping' => '/Box Dimensions[:]?[\s]?'. self::COMMON_DIMS_REGEX .'/i',
-        'product' => '/Assembled Model Dimensions[:]?[\s]?'. self::COMMON_DIMS_REGEX .'/i',
+        'shipping' => '/Box Dimensions[:]?[\s]?' . self::COMMON_DIMS_REGEX . '/i',
+        'product' => '/Assembled Model Dimensions[:]?[\s]?' . self::COMMON_DIMS_REGEX . '/i',
     ];
 
     private null|array $product_info;
@@ -26,12 +26,10 @@ class Parser extends HtmlParser
         if ( trim( $value ) ) {
             if ( false !== stripos( $key, 'box dimensions' ) ) {
                 $this->product_info[ 'shipping_dims' ] = FeedHelper::getDimsInString( $value, '*' );
-            }
-            else if ( false !== stripos( $key, 'assembled model dimensions' ) ) {
+            } else if ( false !== stripos( $key, 'assembled model dimensions' ) ) {
                 $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, '*' );
-            }
-            else {
-                $this->product_info[ 'attributes' ][ trim( $key )  ] = false !== stripos( $key, 'Safety & Compliance' )
+            } else {
+                $this->product_info[ 'attributes' ][ trim( $key ) ] = false !== stripos( $key, 'Safety & Compliance' )
                     ? $this->replaceByRegex( $value )
                     : $value;
             }
@@ -69,46 +67,45 @@ class Parser extends HtmlParser
     private function parseDimsDescriptionAndAttributes(): void
     {
         if ( $this->exists( '[data-hook="collapse-info-section"] li' ) ) {
-            $this->filter( '[data-hook="collapse-info-section"] li' )->each( function ( ParserCrawler $c )  {
-                    $key = $c->getText( 'h2' );
-                    $value = $c->getText( 'div[data-hook="info-section-description"]' );
+            $this->filter( '[data-hook="collapse-info-section"] li' )->each( function ( ParserCrawler $c ) {
+                $key = $c->getText( 'h2' );
+                $value = $c->getText( 'div[data-hook="info-section-description"]' );
 
-                    $this->pushDimsAndAttributes( $key, $value );
+                $this->pushDimsAndAttributes( $key, $value );
 
-                    $this->pushVideo( $value );
-                } );
+                $this->pushVideo( $value );
+            } );
         }
 
         if ( $this->exists( 'pre[data-hook="description"]' ) ) {
             if ( $this->exists( 'pre[data-hook="description"] p' ) ) {
-                $this->filter('pre[data-hook="description"] p')->each( function ( ParserCrawler $c ) {
-                        if ( $c->text() ) {
-                            if ( str_contains( $c->text(), ':' ) && false === stripos( $c->text(), 'Upgraded mechanical construction kit of rally') ) {
-                                [$key, $value] = explode( ':', $c->text(), 2 );
+                $this->filter( 'pre[data-hook="description"] p' )->each( function ( ParserCrawler $c ) {
+                    if ( $c->text() ) {
+                        if ( str_contains( $c->text(), ':' ) && false === stripos( $c->text(), 'Upgraded mechanical construction kit of rally' ) ) {
+                            [ $key, $value ] = explode( ':', $c->text(), 2 );
 
-                                if ( $value ) {
-                                    $key = ltrim( $key, '- ' );
+                            if ( $value ) {
+                                $key = ltrim( $key, '- ' );
 
-                                    $this->pushDimsAndAttributes( $key, $value );
+                                $this->pushDimsAndAttributes( $key, $value );
 
-                                    $video_push = $this->pushVideo( $value );
+                                $video_push = $this->pushVideo( $value );
 
-                                    if ( $video_push && isset( $this->product_info[ 'attributes' ][ $key ] ) ) {
-                                        unset( $this->product_info[ 'attributes' ][ $key ] );
-                                    }
+                                if ( $video_push && isset( $this->product_info[ 'attributes' ][ $key ] ) ) {
+                                    unset( $this->product_info[ 'attributes' ][ $key ] );
                                 }
-                            } else {
-                                $this->product_info['description'] .= '<p>' . $c->text() . '</p>';
                             }
+                        } else {
+                            $this->product_info[ 'description' ] .= '<p>' . $c->text() . '</p>';
                         }
-                    });
-            }
-            else {
+                    }
+                } );
+            } else {
                 $description = $this->getText( 'pre[data-hook="description"]' );
 
                 $this->pushVideo( $description );
 
-                if ( preg_match( self::DIMENSIONS[ 'shipping' ], $description) ) {
+                if ( preg_match( self::DIMENSIONS[ 'shipping' ], $description ) ) {
                     $this->product_info[ 'shipping_dims' ] = FeedHelper::getDimsRegexp( $description, [ self::DIMENSIONS[ 'shipping' ] ] );
                 }
 
@@ -116,24 +113,24 @@ class Parser extends HtmlParser
                     $this->product_info[ 'dims' ] = FeedHelper::getDimsRegexp( $description, [ self::DIMENSIONS[ 'shipping' ] ] );
                 }
 
-                $this->product_info[ 'description' ] = $description ;
+                $this->product_info[ 'description' ] = $description;
             }
         }
     }
 
     public function beforeParse(): void
     {
-        for ( $i = 0; $i <= 10; $i ++ ) {
+        for ( $i = 0; $i <= 10; $i++ ) {
             if ( $this->exists( '#wix-warmup-data' ) ) {
                 $warmup_data = json_decode( $this->getText( '#wix-warmup-data' ), true, 512, JSON_THROW_ON_ERROR );
 
                 if ( isset( $warmup_data[ 'appsWarmupData' ] ) && count( $warmup_data[ 'appsWarmupData' ] ) ) {
-                    $product = $warmup_data[ 'appsWarmupData' ][array_key_first($warmup_data[ 'appsWarmupData' ])];
+                    $product = $warmup_data[ 'appsWarmupData' ][ array_key_first( $warmup_data[ 'appsWarmupData' ] ) ];
 
-                    $this->product_info = $product[array_key_first( $product )][ 'catalog' ][ 'product' ] ?? null;
+                    $this->product_info = $product[ array_key_first( $product ) ][ 'catalog' ][ 'product' ] ?? null;
 
                     if ( $this->product_info ) {
-                       $this->parseDimsDescriptionAndAttributes();
+                        $this->parseDimsDescriptionAndAttributes();
                     }
 
                     break;
