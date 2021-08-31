@@ -220,9 +220,6 @@ class Parser extends HtmlParser
 
     public function getAvail(): ?int
     {
-        return isset( $this->product_info[ 'inventory' ][ 'status' ] )
-                && $this->product_info[ 'inventory' ][ 'status' ] === 'in_stock'
-                    ? self::DEFAULT_AVAIL_NUMBER
-                    : 0;
+        return $this->getAttr( 'meta[property="og:availability"]', 'content' ) === 'InStock' ? self::DEFAULT_AVAIL_NUMBER : 0;
     }
 }
