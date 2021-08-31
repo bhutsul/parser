@@ -152,9 +152,7 @@ class Parser extends HtmlParser
 
     public function getMpn(): string
     {
-        return !empty( $this->product_info[ 'sku' ] )
-                    ? $this->product_info[ 'sku' ]
-                    : $this->product_info[ 'id' ] ?? '';
+        return !empty( $this->product_info[ 'sku' ] ) ? $this->product_info[ 'sku' ] : $this->product_info[ 'id' ] ?? '';
     }
 
     public function getDescription(): string
