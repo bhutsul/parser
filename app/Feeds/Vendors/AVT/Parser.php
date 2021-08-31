@@ -16,8 +16,7 @@ class Parser extends HtmlParser
         'shipping' => '/Box Dimensions[:]?[\s]?'. self::COMMON_DIMS_REGEX .'/i',
         'product' => '/Assembled Model Dimensions[:]?[\s]?'. self::COMMON_DIMS_REGEX .'/i',
     ];
-
-
+    
     private null|array $product_info;
 
     private function pushDimsAndAttributes( string $key, string $value ): void
