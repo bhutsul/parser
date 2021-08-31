@@ -10,6 +10,11 @@ use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
 {
+    public const NOT_VALID_PARTS_OF_DESC = [
+        'check out',
+        'looking for inspiration'
+    ];
+
     private array $product_info;
 
     private function parseAttributesAndDims(): void
@@ -20,16 +25,13 @@ class Parser extends HtmlParser
                     $key = $c->getText( 'th' );
                     $value = $c->getText( 'td' );
 
-                    if ( false !== stripos( $key, 'N/A' ) ) {
-                        $this->product_info[ 'attributes' ][ $key ] = $value;
-                    }
-                    else if ( false !== stripos( $key, 'weight' ) ) {
+                    if ( false !== stripos( $key, 'weight' ) ) {
                         $this->product_info[ 'weight' ] = FeedHelper::convertLbsFromOz( StringHelper::getFloat( $value ) );
                     }
                     else if ( ( false !== stripos( $key, 'dimensions' ) ) ) {
-                        $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, 'x' );
+                        $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, '×' );
                     }
-                    else {
+                    else if ( false === stripos( $key, 'N/A' ) ) {
                         $this->product_info[ 'attributes' ][ $key ] = $value;
                     }
                 } );
@@ -39,6 +41,38 @@ class Parser extends HtmlParser
     private function subtractPercent( $price ): int|float
     {
         return $price - ( $price * ( 15 / 100 ) );
+    }
+
+    private function removeSecondHttps( string $image ): string
+    {
+        if ( substr_count( $image, 'https://' ) === 2 ) {
+            $href = explode( 'https://', $image );
+            $image = 'https://' . $href[ 1 ] . $href[ 2 ];
+        }
+
+        return $image;
+    }
+
+    private function parseDescription(): string
+    {
+        $description = '';
+
+        $this->filter( '#tab-description p' )->each( function ( ParserCrawler $c ) use ( &$description ) {
+            if ( $c->text() ) {
+                $not_valid = false;
+                foreach ( self::NOT_VALID_PARTS_OF_DESC as $text ) {
+                    if ( false !== stripos( $c->text(), $text ) ) {
+                        $not_valid = true;
+                    }
+                }
+
+                if ( $not_valid === false ) {
+                    $description .= '<p>' . $c->text() . '</p>';
+                }
+            }
+        } );
+
+        return $description;
     }
 
     public function beforeParse(): void
@@ -75,12 +109,14 @@ class Parser extends HtmlParser
 
     public function getDescription(): string
     {
-        return $this->getHtml( '#tab-description' );
+        return !$this->exists( '#tab-description p' ) ? $this->getHtml( '#tab-description' ) : $this->parseDescription();
     }
 
     public function getImages(): array
     {
-        return $this->getAttrs( '[data-large_image]', 'data-large_image' );
+        return array_map( fn( $image ) => $this->removeSecondHttps( $image ),
+            $this->getAttrs( '[data-large_image]', 'data-large_image' )
+        );
     }
 
     public function getAttributes(): ?array
@@ -151,8 +187,9 @@ class Parser extends HtmlParser
 
             $fi->setProduct( $product_name );
             $fi->setMpn( $sku );
-            $fi->setImages( $variation[ 'image' ][ 'url' ] ? [ $variation[ 'image' ][ 'url' ] ] : $this->getImages() );
-            $fi->setCostToUs( StringHelper::getMoney( $variation[ 'display_price' ] ) );
+            $fi->setImages( $variation[ 'image' ][ 'url' ] ? [ $this->removeSecondHttps( $variation[ 'image' ][ 'url' ] ) ] : $this->getImages() );
+            $fi->setCostToUs( $this->subtractPercent( StringHelper::getMoney( $variation[ 'display_price' ] ) ) );
+            $fi->setNewMapPrice( StringHelper::getMoney( $variation[ 'display_price' ] ) );
             $fi->setRAvail( $variation[ 'is_in_stock' ] ? self::DEFAULT_AVAIL_NUMBER : 0 );
             $fi->setDimZ( $variation[ 'dimensions' ][ 'width' ] ?: $this->getDimZ() );
             $fi->setDimY( $variation[ 'dimensions' ][ 'height' ] ?: $this->getDimY() );
