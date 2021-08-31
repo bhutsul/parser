@@ -71,8 +71,7 @@ class Parser extends HtmlParser
     private function parseDimsDescriptionAndAttributes(): void
     {
         if ( $this->exists( '[data-hook="collapse-info-section"] li' ) ) {
-            $this->filter( '[data-hook="collapse-info-section"] li' )
-                ->each( function ( ParserCrawler $c )  {
+            $this->filter( '[data-hook="collapse-info-section"] li' )->each( function ( ParserCrawler $c )  {
                     $key = $c->getText( 'h2' );
                     $value = $c->getText( 'div[data-hook="info-section-description"]' );
 
@@ -84,8 +83,7 @@ class Parser extends HtmlParser
 
         if ( $this->exists( 'pre[data-hook="description"]' ) ) {
             if ( $this->exists( 'pre[data-hook="description"] p' ) ) {
-                $this->filter('pre[data-hook="description"] p')
-                    ->each( function ( ParserCrawler $c ) {
+                $this->filter('pre[data-hook="description"] p')->each( function ( ParserCrawler $c ) {
                         if ( $c->text() ) {
                             if ( str_contains( $c->text(), ':' ) && false === stripos( $c->text(), 'Upgraded mechanical construction kit of rally') ) {
                                 [$key, $value] = explode( ':', $c->text(), 2 );
@@ -124,9 +122,7 @@ class Parser extends HtmlParser
             }
         }
     }
-    /**
-     * @throws \JsonException
-     */
+
     public function beforeParse(): void
     {
         for ( $i = 0; $i <= 10; $i ++ ) {
@@ -158,19 +154,16 @@ class Parser extends HtmlParser
 
     public function getMpn(): string
     {
-        return isset( $this->product_info[ 'sku' ] )
-                && $this->product_info[ 'sku' ]
+        return !empty( $this->product_info[ 'sku' ] )
                     ? $this->product_info[ 'sku' ]
                     : $this->product_info[ 'id' ] ?? '';
     }
 
     public function getDescription(): string
     {
-        if ( !isset( $this->product_info[ 'description' ] ) ) {
-            return '';
-        }
-
-        return FeedHelper::cleanProductDescription( $this->replaceByRegex( $this->product_info[ 'description' ] ) );
+        return isset( $this->product_info[ 'description' ] )
+                ? trim( $this->replaceByRegex( $this->product_info[ 'description' ] ), " \t\n\r\0\x0B-" )
+                : '';
     }
 
     public function getShortDescription(): array
@@ -215,7 +208,8 @@ class Parser extends HtmlParser
 
     public function getImages(): array
     {
-        return $this->getAttrs( 'div[data-hook="main-media-image-wrapper"] div', 'href' );
+        return array_values( array_filter( $this->getAttrs( 'div[data-hook="main-media-image-wrapper"] div', 'href' ),
+            static fn( $el ) => !empty( $el ) && str_contains( $el, 'mv2' ) ) );
     }
 
     public function getVideos(): array
