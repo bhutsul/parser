@@ -215,9 +215,7 @@ class Parser extends HtmlParser
 
     public function getCostToUs(): float
     {
-        return StringHelper::getMoney(
-            $this->product_info[ 'price' ] ?? $this->getText( 'span[data-hook="formatted-primary-price"]' )
-        );
+        return StringHelper::getMoney( $this->product_info[ 'price' ] ?? $this->getText( 'span[data-hook="formatted-primary-price"]' ) );
     }
 
     public function getAvail(): ?int
