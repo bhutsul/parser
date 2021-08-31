@@ -16,7 +16,7 @@ class Parser extends HtmlParser
         'shipping' => '/Box Dimensions[:]?[\s]?'. self::COMMON_DIMS_REGEX .'/i',
         'product' => '/Assembled Model Dimensions[:]?[\s]?'. self::COMMON_DIMS_REGEX .'/i',
     ];
-    
+
     private null|array $product_info;
 
     private function pushDimsAndAttributes( string $key, string $value ): void
@@ -226,7 +226,7 @@ class Parser extends HtmlParser
     {
         return isset( $this->product_info[ 'inventory' ][ 'status' ] )
                 && $this->product_info[ 'inventory' ][ 'status' ] === 'in_stock'
-                    ? $this->product_info[ 'inventory' ][ 'quantity' ]
+                    ? self::DEFAULT_AVAIL_NUMBER
                     : 0;
     }
 }
