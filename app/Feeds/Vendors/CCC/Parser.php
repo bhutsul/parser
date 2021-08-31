@@ -194,7 +194,7 @@ class Parser extends HtmlParser
             $fi->setDimZ( $variation[ 'dimensions' ][ 'width' ] ?: $this->getDimZ() );
             $fi->setDimY( $variation[ 'dimensions' ][ 'height' ] ?: $this->getDimY() );
             $fi->setDimX( $variation[ 'dimensions' ][ 'length' ] ?: $this->getDimX() );
-            $fi->setWeight( $variation[ 'weight' ] ?: $this->getWeight() );
+            $fi->setWeight( $variation[ 'weight' ] ? FeedHelper::convertLbsFromOz( $variation[ 'weight' ] ) : $this->getWeight() );
 
             $child[] = $fi;
         }
