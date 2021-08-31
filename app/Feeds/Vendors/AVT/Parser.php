@@ -7,7 +7,6 @@ use App\Feeds\Utils\ParserCrawler;
 use App\Helpers\FeedHelper;
 use App\Helpers\StringHelper;
 
-
 class Parser extends HtmlParser
 {
     public const YOUTUBE_REGEX = 'http(?:s?):\/\/(?:www\.)?youtu(?:be\.com\/watch\?v=|\.be\/)([\w\-\_]*)(&(amp;)?‌​[\w\?‌​=]*)?';
