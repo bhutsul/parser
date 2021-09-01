@@ -114,9 +114,9 @@ class Parser extends HtmlParser
 
     public function getImages(): array
     {
-        return array_map( fn( $image ) => $this->removeSecondHttps( $image ),
+        return array_values( array_filter( array_map( fn( $image ) => $this->removeSecondHttps( $image ),
             $this->getAttrs( '[data-large_image]', 'data-large_image' )
-        );
+        ), static fn( $image ) => false === stripos( $image, 'wp-content' ) ) );
     }
 
     public function getAttributes(): ?array
@@ -187,7 +187,7 @@ class Parser extends HtmlParser
 
             $fi->setProduct( $product_name );
             $fi->setMpn( $sku );
-            $fi->setImages( $variation[ 'image' ][ 'url' ] ? [ $this->removeSecondHttps( $variation[ 'image' ][ 'url' ] ) ] : $this->getImages() );
+            $fi->setImages( $variation[ 'image' ][ 'url' ] && false === stripos( $variation[ 'image' ][ 'url' ], 'wp-content' ) ? [ $this->removeSecondHttps( $variation[ 'image' ][ 'url' ] ) ] : $this->getImages() );
             $fi->setCostToUs( $this->subtractPercent( StringHelper::getMoney( $variation[ 'display_price' ] ) ) );
             $fi->setNewMapPrice( StringHelper::getMoney( $variation[ 'display_price' ] ) );
             $fi->setRAvail( $variation[ 'is_in_stock' ] ? self::DEFAULT_AVAIL_NUMBER : 0 );
