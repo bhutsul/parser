@@ -12,7 +12,13 @@ class Parser extends HtmlParser
 {
     public const NOT_VALID_PARTS_OF_DESC = [
         'check out',
-        'looking for inspiration'
+        'looking for inspiration',
+        'Instagram',
+        'Facebook',
+        'YouTube',
+        'Pinterest',
+        '+ + + +',
+        'you can find me at',
     ];
 
     private array $product_info;
