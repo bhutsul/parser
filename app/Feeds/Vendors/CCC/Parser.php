@@ -19,6 +19,7 @@ class Parser extends HtmlParser
         'Pinterest',
         '+ + + +',
         'you can find me at',
+        'click here to explore all',
     ];
 
     private array $product_info;
