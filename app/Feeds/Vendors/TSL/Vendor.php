@@ -10,9 +10,8 @@ class Vendor extends SitemapHttpProcessor
 {
     protected array $first = ['https://www.taylorsecurity.com/sitemap.xml'];
     public array $custom_products = [
-//        'https://www.taylorsecurity.com/5400-key-storage/',
-//        'https://www.taylorsecurity.com/hes-1006-electric-strike-1006-630-1006-blk-1006-613-1006-lbm-1006-lbsm-1006f-1006f-630-1006f-blk-1006f-613-1006f-lbm-1006f-lbsm/'
-        'https://www.taylorsecurity.com/codelocks-kl1200-sg-kitlock-cabinet-electronic-keyless-door-lock/'
+//        'https://www.taylorsecurity.com/securitech-sb175-series-safebolt-instant-button-activated-lockdown-lock/',
+        'https://www.taylorsecurity.com/deadbolt-by-emtek-empowered-motorized-touchscreen-keypad-deadbolt/'
     ];
 
 //    protected function isValidFeedItem(FeedItem $fi ): bool
