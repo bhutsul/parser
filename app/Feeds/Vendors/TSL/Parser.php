@@ -13,25 +13,27 @@ class Parser extends HtmlParser
 {
     public const OPTION_LINK = 'https://www.taylorsecurity.com/ajax/store/ajax.aspx';
     public const NOT_VALID_PARTS_OF_DESC = [
-
+        'sales@taylorsecurity.com',
+        '1-800-676-7670',
     ];
 
     private array $product_info;
 
-    private function parseFilesAndVideos(): void
+    private function pushFilesAndVideos(): void
     {
         if ($this->exists('#tab-templates')) {
-            $this->filter('#tab-templates a')->each(function (ParserCrawler $c) {
-                if (false !== stripos($c->attr('href'), 'pdf')) {
-                    $this->product_info['files'][] = [
-                        'name' => trim(str_replace("Download", '', $c->text())),
-                        'link' => $c->attr('href')
-                    ];
-                }
+            $this->filter('#tab-templates a')->each(function (ParserCrawler $a) {
+                $this->pushFileFromA($a);
             });
 
             $this->filter('#tab-templates iframe')->each(function (ParserCrawler $iframe) {
                 $this->pushVideoFromIframe($iframe);
+            });
+        }
+
+        if ($this->exists('#tab-description')) {
+            $this->filter('#tab-description a')->each(function (ParserCrawler $a) {
+                $this->pushFileFromA($a);
             });
         }
 
@@ -51,20 +53,27 @@ class Parser extends HtmlParser
         ];
     }
 
-    private function formattedChildProperties(array $item_properties): array
+    private function pushFileFromA(ParserCrawler $a): void
+    {
+        if (false !== stripos($a->attr('href'), 'pdf')) {
+            $this->product_info['files'][] = [
+                'name' => trim(str_replace("Download", '', $a->text())),
+                'link' => $a->attr('href')
+            ];
+        }
+    }
+
+    private function formattedChildProperties(array $item_properties, array $options, array $option_names, int $item_id, int $value_id): array
     {
         $properties = [];
 
         foreach ($item_properties as $property) {
             switch ($property['N']) {
-                case 'ItemName':
-                    $properties['name'] = $property['V'];
-                    break;
                 case 'SKU':
                     $properties['mpn'] = $property['V'];
                     break;
                 case 'Price':
-                    $properties['price'] = StringHelper::getFloat($property['V']);
+                    $properties['price'] = $property['V'];
                     break;
                 case 'Images':
                     $properties['images'] = !empty($property['V']) ? $this->formattedImages((new ParserCrawler($property['V']))->getAttrs('a', 'href')) : [];
@@ -72,18 +81,117 @@ class Parser extends HtmlParser
             }
         }
 
+        $properties['name']  = '';
+        foreach ($options as $id) {
+            $properties['name']  .= $option_names[$id];
+        }
+
+        if ($this->priceNotValid($properties['price'])) {
+            $properties['price'] = $this->fetchPrice($item_id, $value_id);
+        }
+
         return $properties;
     }
 
     private function formattedImages(array $images): array
     {
-        return array_map(static fn($url) => "https://www.taylorsecurity.com$url", $images);
+        return array_values(
+            array_filter(
+                array_map(static fn( $image ) => false === stripos($image, 'https') ? "https://www.taylorsecurity.com$image" : $image, $images ),
+                static fn( $image ) => $image !== null && false === stripos( $image, 'no_image' )
+            )
+        );
     }
 
-    private function optionNames(array $classifications): array
+    private function parseDescription(): string
     {
+        $description = '';
+
+        $this->filter( '#tab-description p' )->each( function ( ParserCrawler $c ) use ( &$description ) {
+            if ( $c->text() ) {
+                $not_valid = false;
+                foreach ( self::NOT_VALID_PARTS_OF_DESC as $text ) {
+                    if ( false !== stripos( $c->text(), $text ) ) {
+                        $not_valid = true;
+                    }
+                }
+
+                if ( $not_valid === false ) {
+                    $description .= '<p>' . $c->text() . '</p>';
+                }
+            }
+        } );
+
+        return $description;
+    }
+
+    private function parsePrice(): float
+    {
+        if ($this->isGroup() || !$this->exists('#CT_ItemDetailsBottom_2_lblPrice')) {
+            return 0;
+        }
+
+        $price = $this->getText('#CT_ItemDetailsBottom_2_lblPrice');
+
+        if ($this->priceNotValid($price)) {
+            if (!isset($this->product_info['options'])) {
+                return 0;
+            }
+            $price = $this->fetchPrice($this->product_info['options']['SelectedItem'], $this->product_info['options']['ValueId']);
+        }
+
+        return StringHelper::getFloat($price);
+    }
+
+    private function fetchPrice(int $item_id, int $value_id): int|string
+    {
+        $price = $this->getVendor()->getDownloader()->post(self::OPTION_LINK, [
+            'F' => 'Add2CartTable',
+            'ItemId' => $item_id,
+            'ValueId' => $value_id,
+            'Qty' => 1,
+            'Recipient' => 'Myself',
+            'IsMobile' => false,
+        ]);
+        $price = json_decode($price->getData(), true, 512, JSON_THROW_ON_ERROR);
+
+        return $price['TotalPrice'];
+    }
+
+    private function fetchChild(): \Generator
+    {
+        if (!isset($this->product_info['options']['Items'])) {
+            return [];
+        }
+        $option_names = $this->optionNames();
+
+        foreach ($this->product_info['options']['Items'] as $group_of_options) {
+            $value_id = $group_of_options['s'][array_key_first($group_of_options['s'])];
+
+            $child = $this->getVendor()->getDownloader()->get(self::OPTION_LINK, [
+                'F' => 'GetSelectionItemInfo',
+                'SelectionId' => $value_id,
+                'ItemId' => $group_of_options['i'],
+            ]);
+            $child = json_decode($child->getData(), true, 512, JSON_THROW_ON_ERROR);
+
+            yield $this->formattedChildProperties($child['ItemProperties'], $group_of_options['s'], $option_names, $group_of_options['i'], $value_id);
+        }
+    }
+
+    private function priceNotValid(string $price): bool
+    {
+        return false !== stripos($price, 'add to cart');
+    }
+
+    private function optionNames(): array
+    {
+        if (!isset($this->product_info['options']['Classifications'])) {
+            return [];
+        }
+
         $names = [];
-        foreach ($classifications as $group) {
+        foreach ($this->product_info['options']['Classifications'] as $group) {
             foreach ($group['s'] as $option) {
                 $names[$option['i']] = $group['n'] . ': ' . $option['s'] . '. ';
             }
@@ -92,44 +200,16 @@ class Parser extends HtmlParser
         return $names;
     }
 
-    private function childName(array $options, array $option_names): string
-    {
-        $name = '';
-        foreach ($options as $id) {
-            $name .= $option_names[$id];
-        }
-        return $name;
-    }
-
-    private function childItem(array $group_of_options): array
-    {
-        $option = array_shift($group_of_options['s']);
-
-        $product = $this->getVendor()->getDownloader()->get(self::OPTION_LINK, [
-            'F' => 'GetSelectionItemInfo',
-            'SelectionId' => $option,
-            'ItemId' => $group_of_options['i'],
-        ]);
-
-        $product = json_decode($product->getData(), true, 512, JSON_THROW_ON_ERROR);
-
-        return $this->formattedChildProperties($product['ItemProperties']);
-    }
-
     public function beforeParse(): void
     {
-        $this->parseFilesAndVideos();
-        if ($this->exists('#tab-description')) {
-            $short_desc_attr = FeedHelper::getShortsAndAttributesInDescription($this->getHtml('#tab-description'));
-            $this->product_info['short_description'] = $short_desc_attr['short_description'];
-            $this->product_info['description'] = $short_desc_attr['description'];
-            $this->product_info['attributes'] = $short_desc_attr['attributes'];
-        }
+        $this->pushFilesAndVideos();
+        $this->product_info['description'] = $this->parseDescription();
 
         preg_match('/IdevSelections\([\s*]?({.*?})[\s*]?\);/s', $this->node->html(), $matches);
         if (isset($matches[1])) {
             $this->product_info['options'] = json_decode($matches[1], true, 512, JSON_THROW_ON_ERROR);
         }
+        $this->product_info['price'] = $this->parsePrice();
     }
 
     public function isGroup(): bool
@@ -157,14 +237,19 @@ class Parser extends HtmlParser
         return $this->product_info['description'] ?? '';
     }
 
-    public function getShortDescription(): array
-    {
-        return $this->product_info['short_description'] ?? [];
-    }
-
     public function getImages(): array
     {
-        return $this->formattedImages($this->getAttrs('#altImagesViewer a', 'href'));
+        $images = $this->getAttrs('#altImagesViewer a', 'href');
+
+        if (!$images) {
+            $images = [$this->getAttr('#imageViewer img', 'src')];
+        }
+
+        if ($this->exists('#tab-specifications img')) {
+            $images[] = $this->getAttr('#tab-specifications p img', 'src');
+        }
+
+        return $this->formattedImages($images);
     }
 
     public function getVideos(): array
@@ -184,7 +269,7 @@ class Parser extends HtmlParser
 
     public function getCostToUs(): float
     {
-        return StringHelper::getMoney($this->getText('#CT_ItemDetailsBottom_2_lblPrice'));
+        return $this->product_info['price'] ?? 0;
     }
 
     public function getAvail(): ?int
@@ -201,15 +286,12 @@ class Parser extends HtmlParser
     {
         $child = [];
 
-        $option_names = $this->optionNames($this->product_info['options']['Classifications']);
-        foreach ($this->product_info['options']['Items'] as $group_of_options) {
-            $child_item = $this->childItem($group_of_options);
-
+        foreach ($this->fetchChild() as $item) {
             $fi = clone $parent_fi;
-            $fi->setProduct($this->childName($group_of_options['s'], $option_names));
-            $fi->setMpn($child_item['mpn']);
-            $fi->setImages($child_item['images']);
-            $fi->setCostToUs($child_item['price'] ?? 0);
+            $fi->setProduct($item['name']);
+            $fi->setMpn($item['mpn']);
+            $fi->setImages($item['images']);
+            $fi->setCostToUs(StringHelper::getFloat($item['price']));
             $fi->setRAvail($this->getAvail());
 
             $child[] = $fi;
