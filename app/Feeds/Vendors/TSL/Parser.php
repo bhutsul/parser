@@ -163,19 +163,35 @@ class Parser extends HtmlParser
         if (!isset($this->product_info['options']['Items'])) {
             return [];
         }
-        $option_names = $this->optionNames();
+
+        $links = [];
+        $items = [];
 
         foreach ($this->product_info['options']['Items'] as $group_of_options) {
             $value_id = $group_of_options['s'][array_key_first($group_of_options['s'])];
 
-            $child = $this->getVendor()->getDownloader()->get(self::OPTION_LINK, [
+            $link = new Link(self::OPTION_LINK, 'get', [
                 'F' => 'GetSelectionItemInfo',
                 'SelectionId' => $value_id,
                 'ItemId' => $group_of_options['i'],
             ]);
-            $child = json_decode($child->getData(), true, 512, JSON_THROW_ON_ERROR);
 
-            yield $this->formattedChildProperties($child['ItemProperties'], $group_of_options['s'], $option_names, $group_of_options['i'], $value_id);
+            $items[$link->getUrl()] = [
+                'item_id' => $group_of_options['i'],
+                'value_id' => $value_id,
+                'options' => $group_of_options['s'],
+            ];
+
+            $links[] = $link;
+        }
+
+        $option_names = $this->optionNames();
+        $child = $this->getVendor()->getDownloader()->fetch($links);
+
+        foreach ($child as $link => $item) {
+            $item = json_decode($item->getData(), true, 512, JSON_THROW_ON_ERROR);
+
+            yield $this->formattedChildProperties($item['ItemProperties'], $items[$link]['options'], $option_names, $items[$link]['item_id'], $items[$link]['value_id']);
         }
     }
 
