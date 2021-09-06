@@ -6,7 +6,6 @@ use App\Feeds\Feed\FeedItem;
 use App\Feeds\Parser\HtmlParser;
 use App\Feeds\Utils\Link;
 use App\Feeds\Utils\ParserCrawler;
-use App\Helpers\FeedHelper;
 use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
