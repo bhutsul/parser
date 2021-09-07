@@ -137,11 +137,11 @@ class Parser extends HtmlParser
                 if ( $prev_elements->count() ) {
                     $prev = $prev_elements->first();
                     if ( false !== stripos( $prev->text(), 'Features and Benefits' ) ) {
-                        $features = explode( '<br>', $c->getHtml( 'span' ) );
+                        $features = explode( '<br>', $c->html() );
 
                         foreach ( $features as $feature ) {
                             if ( $feature ) {
-                                $this->product_info[ 'shorts' ][] = $feature;
+                                $this->product_info[ 'shorts' ][] = strip_tags( $feature );
                             }
                         }
                         $not_valid = true;
