@@ -353,7 +353,6 @@ class Parser extends HtmlParser
 
         foreach ( $this->fetchChild() as $item ) {
             $fi = clone $parent_fi;
-            StringHelper::getFloat( $item[ 'price' ] );
             $fi->setProduct( $item[ 'name' ] );
             $fi->setMpn( $item[ 'mpn' ] );
             $fi->setImages( $item[ 'images' ] ?: $this->getImages() );
