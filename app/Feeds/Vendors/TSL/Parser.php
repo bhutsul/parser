@@ -181,7 +181,7 @@ class Parser extends HtmlParser
             $price = $this->fetchPrice( $this->product_info[ 'options' ][ 'SelectedItem' ], $this->product_info[ 'options' ][ 'ValueId' ] );
         }
 
-        return StringHelper::getFloat( $price );
+        return StringHelper::getFloat( $price, 0 );
     }
 
     private function fetchPrice( int $item_id, int $value_id ): int|string
@@ -353,10 +353,11 @@ class Parser extends HtmlParser
 
         foreach ( $this->fetchChild() as $item ) {
             $fi = clone $parent_fi;
+            StringHelper::getFloat( $item[ 'price' ] );
             $fi->setProduct( $item[ 'name' ] );
             $fi->setMpn( $item[ 'mpn' ] );
             $fi->setImages( $item[ 'images' ] ?: $this->getImages() );
-            $fi->setCostToUs( StringHelper::getFloat( $item[ 'price' ] ) );
+            $fi->setCostToUs( StringHelper::getFloat( $item[ 'price' ], 0 ) );
             $fi->setRAvail( $this->getAvail() );
 
             $child[] = $fi;
