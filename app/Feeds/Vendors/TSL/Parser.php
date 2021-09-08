@@ -217,7 +217,7 @@ class Parser extends HtmlParser
                 'ItemId' => $group_of_options[ 'i' ],
             ] );
 
-            $items[ $link->getUrl() ] = [
+            $items[ $group_of_options[ 'i' ] ] = [
                 'item_id' => $group_of_options[ 'i' ],
                 'value_id' => $value_id,
                 'options' => $group_of_options[ 's' ],
@@ -227,12 +227,13 @@ class Parser extends HtmlParser
         }
 
         $option_names = $this->optionNames();
-        $child = $this->getVendor()->getDownloader()->fetch( $links );
+        $child = $this->getVendor()->getDownloader()->fetch( $links, true );
 
-        foreach ( $child as $link => $item ) {
-            $item = json_decode( $item->getData(), true, 512, JSON_THROW_ON_ERROR );
+        foreach ( $child as $item ) {
+            $item_id = $item['link']['params']['ItemId'];
+            $item = json_decode( $item['data']->getData(), true, 512, JSON_THROW_ON_ERROR );
 
-            yield $this->formattedChildProperties( $item[ 'ItemProperties' ], $items[ $link ][ 'options' ], $option_names, $items[ $link ][ 'item_id' ], $items[ $link ][ 'value_id' ] );
+            yield $this->formattedChildProperties( $item[ 'ItemProperties' ], $items[ $item_id ][ 'options' ], $option_names, $items[ $item_id ][ 'item_id' ], $items[ $item_id ][ 'value_id' ] );
         }
     }
 
