@@ -13,10 +13,12 @@ class Vendor extends HttpProcessor
 {
     public const CATEGORY_LINK_CSS_SELECTORS = [ '#main-menu .menu li a', '.pager a' ];
     public const PRODUCT_LINK_CSS_SELECTORS = [ '.views-field-field-itemno a' ];
-//    public array $custom_products = [
-////        'https://www.wtliving.com/products/home-furniture/braga-metal-stool-table-container-antique-bronze-finish',
-//        'https://www.wtliving.com/products/patio-sense-furniture/patio-seating/comfort-height-coconino-armchair-mocha-all-weather-wicker'
-//    ];
+    public array $custom_products = [
+//        'https://www.wtliving.com/products/home-furniture/braga-metal-stool-table-container-antique-bronze-finish',
+//        'https://www.wtliving.com/products/patio-sense-furniture/patio-seating/comfort-height-coconino-armchair-mocha-all-weather-wicker',
+        'https://wtliving.com/products/patio-sense-furniture/patio-seating/sava-indoor-outdoor-folding-chair-warm-gray-webbing',
+        'https://wtliving.com/products/vinyl-outdoor-covers/outdoor-patio-heater-head-vinyl-cover',
+    ];
     protected array $headers = [
         'Connection' => 'keep-alive',
         'Accept' => '*/*',
