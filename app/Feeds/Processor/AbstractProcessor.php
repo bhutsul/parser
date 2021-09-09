@@ -224,6 +224,7 @@ abstract class AbstractProcessor
                 ->filter( implode( ', ', static::PRODUCT_LINK_CSS_SELECTORS ) )
                 ->each( static fn( ParserCrawler $node ) => new Link( static::getNormalizedLink( $node->link()->getUri() ) ) )
             : [];
+        $tes = array_values( array_filter( $links ?? [], [ $this, 'filterProductLinks' ] ) );
         return array_values( array_filter( $links ?? [], [ $this, 'filterProductLinks' ] ) );
     }
 

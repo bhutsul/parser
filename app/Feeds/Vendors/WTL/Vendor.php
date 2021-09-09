@@ -3,17 +3,52 @@
 namespace App\Feeds\Vendors\WTL;
 
 use App\Feeds\Processor\HttpProcessor;
+use App\Feeds\Utils\Collection;
+use App\Feeds\Utils\Data;
 use App\Feeds\Utils\Link;
+use App\Feeds\Utils\ParserCrawler;
+use App\Helpers\HttpHelper;
 
 class Vendor extends HttpProcessor
 {
-    protected array $first = ['https://www.wtliving.com/products'];
-    public const CATEGORY_LINK_CSS_SELECTORS = ['.view-content a'];
-    public const PRODUCT_LINK_CSS_SELECTORS = ['.view-content table tr span.field-content a'];
+    public const CATEGORY_LINK_CSS_SELECTORS = [ '#main-menu .menu li a', '.pager a' ];
+    public const PRODUCT_LINK_CSS_SELECTORS = [ '.views-field-field-itemno a' ];
+//    public array $custom_products = [
+////        'https://www.wtliving.com/products/home-furniture/braga-metal-stool-table-container-antique-bronze-finish',
+//        'https://www.wtliving.com/products/patio-sense-furniture/patio-seating/comfort-height-coconino-armchair-mocha-all-weather-wicker'
+//    ];
     protected array $headers = [
-        'accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-        'cookie' => 'sucuri_cloudproxy_uuid_8ee7bcb6d=8b82b78d4a791a19be50c6d64277067d; has_js=1; BVImplmain_site=14983; BVBRANDID=efe615b4-df4f-4821-925b-1bfc85debade; BVBRANDSID=58585cde-0f23-4183-93c7-8f515f3e1aba'
+        'Connection' => 'keep-alive',
+        'Accept' => '*/*',
     ];
+    protected const STATIC_USER_AGENT = true;
+    protected const DELAY_S = 0.3;
+
+    private function preparedData( string $url ): Data
+    {
+        $this->getDownloader()->setUserAgent( 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36' );
+        $cookies = HttpHelper::sucuri( $this->getDownloader()->get( $url )->getData() );
+        if (isset($cookies[ 0 ], $cookies[ 1 ] )) {
+            $this->getDownloader()->setCookie( $cookies[ 0 ], $cookies[ 1 ] );
+        }
+
+        return $this->getDownloader()->get( $url );
+    }
+
+    public function beforeProcess()
+    {
+        $this->getQueue()->addLinks( [ new Link( 'https://www.wtliving.com' ) ], Collection::LINK_TYPE_CATEGORY );
+    }
+
+    public function getCategoriesLinks( Data $data, string $url ): array
+    {
+        return parent::getCategoriesLinks( $this->preparedData( $url ), $url );
+    }
+
+    public function getProductsLinks( Data $data, string $url ): array
+    {
+        return parent::getProductsLinks( $this->preparedData( $url ), $url );
+    }
 
 //    /**
 //     * @param FeedItem $fi
@@ -30,9 +65,4 @@ class Vendor extends HttpProcessor
 //
 //        return !empty( $fi->getMpn() ) && count( $fi->getImages() ) && $fi->getCostToUs() > 0;
 //    }
-
-    public function filterProductLinks( Link $link ): bool
-    {
-        return str_contains( $link->getUrl(), '/product/' );
-    }
 }
