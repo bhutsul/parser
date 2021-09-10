@@ -23,9 +23,9 @@ class Parser extends HtmlParser
     public const DIMS_REGEXES = [
         'shipping_weight' => '/(\d+[.]?\d*)[\s]?lbs|lb/u',
         'WDH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?W[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?D[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
-        'LWH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?L[^\w\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
-        'WLH' => '/(\d+[\.]?\d*)[^\w\s?[\s]?W[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?L[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
-        'WHH' => '/(\d+[\.]?\d*)[^\w\s?[\s]?W[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
+        'LWH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?L[^\w\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
+        'WLH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?L[^\w\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
+        'WHH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H[^\w\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
         'DIH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?dia[.]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
         'XXX' => '/(\d+[\.]?\d*)[\s]?[x,X][\s]?(\d+[\.]?\d*)[\s]?[x,X]?[\s]?(\d+[\.]?\d*)/ui',
         'LW' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?L[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?W/ui',
@@ -62,20 +62,13 @@ class Parser extends HtmlParser
             $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'WHH' ] ] );
         }
         else {
-            $this->pushAttr( $text );
+            $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
         }
 
         return [
             'dims' => $dims ?? null,
             'weight' => $weight ?? null,
         ];
-    }
-
-    private function pushAttr( string $text ): void
-    {
-        $text = trim( strip_tags( $text ) );
-        [ $key, $value ] = explode( ':', $text, 2 );
-        $this->product_info[ 'attributes' ][ trim( $key ) ] = trim( StringHelper::normalizeSpaceInString( $value ) );
     }
 
     private function replaceNode(): void
@@ -114,7 +107,11 @@ class Parser extends HtmlParser
                         || false !== stripos( $description, 'Item Dimensions' )
                         || false !== stripos( $description, 'assembled dimensions' )
                     ) {
-                        if ( $description === 'Assembled Dimensions: ' || $c->exists( 'br' ) ) {
+                        if (
+                            $description === 'Assembled Dimensions: '
+                            || $c->exists( 'br' )
+                            || false !== stripos( $description, 'Head Unit' )
+                        ) {
                             $not_valid = false;
                         }
                         else {
@@ -130,9 +127,6 @@ class Parser extends HtmlParser
                         $dims = $this->dimsFromString( $description );
                         $this->product_info[ 'shipping_weight' ] = $dims[ 'weight' ];
                         $this->product_info[ 'shipping_dims' ] = $dims[ 'dims' ];
-                    }
-                    else if ( str_starts_with( $description, 'Table' ) ) {
-                        $this->pushAttr( $description );
                     }
 
                     if ( $not_valid === false ) {

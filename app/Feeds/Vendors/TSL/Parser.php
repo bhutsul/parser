@@ -92,9 +92,9 @@ class Parser extends HtmlParser
             $properties[ 'name' ] .= $option_names[ $id ];
         }
 
-//        if ( $this->priceNotValid( $properties[ 'price' ] ) ) {
-//            $properties[ 'price' ] = $this->fetchPrice( $item_id, $value_id );
-//        }
+        if ( $this->priceNotValid( $properties[ 'price' ] ) ) {
+            $properties[ 'price' ] = $this->fetchPrice( $item_id, $value_id );
+        }
 
         return $properties;
     }
@@ -174,12 +174,12 @@ class Parser extends HtmlParser
 
         $price = $this->getText( '#CT_ItemDetailsBottom_2_lblPrice' );
 
-//        if ( $this->priceNotValid( $price ) ) {
-//            if ( !isset( $this->product_info[ 'options' ] ) ) {
-//                return 0;
-//            }
-//            $price = $this->fetchPrice( $this->product_info[ 'options' ][ 'SelectedItem' ], $this->product_info[ 'options' ][ 'ValueId' ] );
-//        }
+        if ( $this->priceNotValid( $price ) ) {
+            if ( !isset( $this->product_info[ 'options' ] ) ) {
+                return 0;
+            }
+            $price = $this->fetchPrice( $this->product_info[ 'options' ][ 'SelectedItem' ], $this->product_info[ 'options' ][ 'ValueId' ] );
+        }
 
         return StringHelper::getFloat( $price, 0 );
     }

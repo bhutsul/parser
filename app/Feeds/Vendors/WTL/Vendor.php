@@ -13,7 +13,7 @@ class Vendor extends HttpProcessor
 {
     public const CATEGORY_LINK_CSS_SELECTORS = [ '#main-menu .menu li a', '.pager a' ];
     public const PRODUCT_LINK_CSS_SELECTORS = [ '.views-field-field-itemno a' ];
- 
+
     protected array $headers = [
         'Connection' => 'keep-alive',
         'Accept' => '*/*',
@@ -32,7 +32,7 @@ class Vendor extends HttpProcessor
         return $this->getDownloader()->get( $url );
     }
 
-    public function beforeProcess()
+    public function beforeProcess(): void
     {
         $this->getQueue()->addLinks( [ new Link( 'https://www.wtliving.com' ) ], Collection::LINK_TYPE_CATEGORY );
     }
