@@ -39,7 +39,7 @@ class Parser extends HtmlParser
     {
         if ( preg_match( self::WEIGHT_REGEX, $text, $matches ) && isset( $matches[ 1 ] ) ) {
             $weight = StringHelper::getFloat( $matches[ 1 ] );
-            $weight_match = $matches[ 0 ];
+            $text = preg_replace( '/[,]?[\s]?weight: ' . $matches[ 0 ] . '[.]?/i', '', $text );
         }
 
         if ( preg_match( self::DIMS_REGEXES[ 'WDH' ], $text ) ) {
@@ -67,9 +67,6 @@ class Parser extends HtmlParser
             $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'WHH' ] ] );
         }
         else {
-            if ( isset( $weight_match ) ) {
-                $text = preg_replace( '/[,]?[\s]?weight: ' . $weight_match . '[.]?/i', '', $text );
-            }
             $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
         }
 
