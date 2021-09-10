@@ -13,6 +13,7 @@ class Vendor extends HttpProcessor
 {
     public const CATEGORY_LINK_CSS_SELECTORS = [ '#main-menu .menu li a', '.pager a' ];
     public const PRODUCT_LINK_CSS_SELECTORS = [ '.views-field-field-itemno a' ];
+
     protected array $headers = [
         'Connection' => 'keep-alive',
         'Accept' => '*/*',
@@ -24,7 +25,7 @@ class Vendor extends HttpProcessor
     {
         $this->getDownloader()->setUserAgent( 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.4577.63 Safari/537.36' );
         $cookies = HttpHelper::sucuri( $this->getDownloader()->get( $url )->getData() );
-        if (isset($cookies[ 0 ], $cookies[ 1 ] )) {
+        if ( isset( $cookies[ 0 ], $cookies[ 1 ] ) ) {
             $this->getDownloader()->setCookie( $cookies[ 0 ], $cookies[ 1 ] );
         }
 
@@ -46,7 +47,7 @@ class Vendor extends HttpProcessor
         return parent::getProductsLinks( $this->preparedData( $url ), $url );
     }
 
-    protected function isValidFeedItem(FeedItem $fi ): bool
+    protected function isValidFeedItem( FeedItem $fi ): bool
     {
         return !empty( $fi->getMpn() ) && count( $fi->getImages() );
     }
