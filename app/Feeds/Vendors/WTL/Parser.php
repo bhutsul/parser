@@ -115,9 +115,13 @@ class Parser extends HtmlParser
                         || false !== stripos( $description, 'assembled dimensions' )
                     ) {
                         if (
-                            $description === 'Assembled Dimensions: '
-                            || $c->exists( 'br' )
-                            || false !== stripos( $description, 'Head Unit' )
+                            false === stripos( $description, 'Provided dimensions ')
+                            &&
+                            (
+                                $description === 'Assembled Dimensions: '
+                                || $c->exists( 'br' )
+                                || false !== stripos( $description, 'Head Unit' )
+                            )
                         ) {
                             $not_valid = false;
                         }
