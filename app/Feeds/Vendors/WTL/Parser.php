@@ -183,7 +183,7 @@ class Parser extends HtmlParser
 
     public function getAttributes(): ?array
     {
-        return $this->product_info[ 'attributes' ] ?? null;
+        return isset( $this->product_info[ 'attributes' ] ) && $this->product_info[ 'attributes' ] ? $this->product_info[ 'attributes' ] : null;
     }
 
     public function getAvail(): ?int
