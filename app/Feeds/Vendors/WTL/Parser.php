@@ -37,9 +37,11 @@ class Parser extends HtmlParser
 
     private function dimsFromString( string $text ): array
     {
+        $text = StringHelper::removeSpaces( $text );
+
         if ( preg_match( self::WEIGHT_REGEX, $text, $matches ) && isset( $matches[ 1 ] ) ) {
             $weight = StringHelper::getFloat( $matches[ 1 ] );
-            $text = preg_replace( '/[,]?[\s]?weight: ' . $matches[ 0 ] . '[.]?/i', '', $text );
+            $text = preg_replace( '/[,]?[\s]?weight:[\s]?' . $matches[ 0 ] . '[.]?/i', '', $text );
         }
 
         if ( preg_match( self::DIMS_REGEXES[ 'WDH' ], $text ) ) {
