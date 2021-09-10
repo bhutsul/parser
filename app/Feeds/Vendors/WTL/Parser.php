@@ -144,7 +144,7 @@ class Parser extends HtmlParser
                 $this->product_info[ 'videos' ][] = [
                     'name' => $this->getProduct(),
                     'provider' => 'youtube',
-                    'video' => $iframe->attr( 'src' ),
+                    'video' =>  false === stripos( $iframe->attr(  'src' ), 'https' ) ? 'https://' . ltrim( $iframe->attr(  'src' ), '//' ) : $iframe->attr(  'src' ),
                 ];
             } );
 
