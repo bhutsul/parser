@@ -13,7 +13,7 @@ class Vendor extends HttpProcessor
 {
     public const CATEGORY_LINK_CSS_SELECTORS = [ '#main-menu .menu li a', '.pager a' ];
     public const PRODUCT_LINK_CSS_SELECTORS = [ '.views-field-field-itemno a' ];
-
+    
     protected array $headers = [
         'Connection' => 'keep-alive',
         'Accept' => '*/*',

@@ -46,7 +46,7 @@ class Parser extends HtmlParser
             $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'WDH' ] ], 1, 3, 2 );
         }
         else if ( preg_match( self::DIMS_REGEXES[ 'LWH' ], $text ) ) {
-            $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'LWH' ] ], 2, 3, 1 );
+            $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'LWH' ] ], 1, 3, 2 );
         }
         else if ( preg_match( self::DIMS_REGEXES[ 'LWD' ], $text ) ) {
             $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'LWD' ] ] );
