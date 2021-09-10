@@ -24,6 +24,7 @@ class Parser extends HtmlParser
         'shipping_weight' => '/(\d+[.]?\d*)[\s]?lbs|lb/u',
         'WDH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?W[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?D[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
         'LWH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?L[^\w\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
+        'LWD' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?L[^\w\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?D/ui',
         'WLH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?L[^\w\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
         'WHH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H[^\w\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
         'DIH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?dia[.]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
@@ -38,6 +39,7 @@ class Parser extends HtmlParser
     {
         if ( preg_match( self::WEIGHT_REGEX, $text, $matches ) && isset( $matches[ 1 ] ) ) {
             $weight = StringHelper::getFloat( $matches[ 1 ] );
+            $weight_match = $matches[ 0 ];
         }
 
         if ( preg_match( self::DIMS_REGEXES[ 'WDH' ], $text ) ) {
@@ -45,6 +47,9 @@ class Parser extends HtmlParser
         }
         else if ( preg_match( self::DIMS_REGEXES[ 'LWH' ], $text ) ) {
             $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'LWH' ] ], 2, 3, 1 );
+        }
+        else if ( preg_match( self::DIMS_REGEXES[ 'LWD' ], $text ) ) {
+            $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'LWD' ] ] );
         }
         else if ( preg_match( self::DIMS_REGEXES[ 'WLH' ], $text ) ) {
             $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'WLH' ] ], 1, 3, 2 );
@@ -62,6 +67,9 @@ class Parser extends HtmlParser
             $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'WHH' ] ] );
         }
         else {
+            if ( isset( $weight_match ) ) {
+                $text = preg_replace( '/[,]?[\s]?weight: ' . $weight_match . '[.]?/i', '', $text );
+            }
             $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
         }
 
@@ -142,6 +150,14 @@ class Parser extends HtmlParser
                     'video' => $iframe->attr( 'src' ),
                 ];
             } );
+
+            $this->filter( '.views-field-field-description object embed' )->each( function ( ParserCrawler $iframe ) {
+                $this->product_info[ 'videos' ][] = [
+                    'name' => $this->getProduct(),
+                    'provider' => 'youtube',
+                    'video' => $iframe->attr( 'mce_src' ),
+                ];
+            } );
         }
     }
 
@@ -167,7 +183,7 @@ class Parser extends HtmlParser
 
     public function getImages(): array
     {
-        return $this->getSrcImages( '.gallery-slide img' );
+        return $this->getAttrs( '.gallery-slide a', 'href' );
     }
 
     public function getVideos(): array
