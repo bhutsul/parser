@@ -13,11 +13,7 @@ class Vendor extends HttpProcessor
 {
     public const CATEGORY_LINK_CSS_SELECTORS = [ '#main-menu .menu li a', '.pager a' ];
     public const PRODUCT_LINK_CSS_SELECTORS = [ '.views-field-field-itemno a' ];
-    public array $custom_products = [
-        'https://www.wtliving.com/products/patio-heaters/patio-heater-upgrades/one-piece-heavy-duty-reflector-upgrade',
-//        '',
-//        '',
-    ];
+ 
     protected array $headers = [
         'Connection' => 'keep-alive',
         'Accept' => '*/*',
