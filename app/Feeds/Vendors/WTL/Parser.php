@@ -115,14 +115,20 @@ class Parser extends HtmlParser
                         || false !== stripos( $description, 'assembled dimensions' )
                     ) {
                         if (
-                            false === stripos( $description, 'Provided dimensions ')
-                            &&
-                            (
+                            false === stripos( $description, 'Provided dimensions ' )
+                            && false === stripos( $description, 'dimensions may be rounded' )
+                            && (
                                 $description === 'Assembled Dimensions: '
                                 || $c->exists( 'br' )
                                 || false !== stripos( $description, 'Head Unit' )
                             )
                         ) {
+                            if ( preg_match( '/(Carton Dimensions\s*.*s[.]?)/ui', $description, $shipping_matches ) && isset( $shipping_matches[ 1 ] ) ) {
+                                $description = str_replace( $shipping_matches[ 1 ], '', $description );
+                                $dims = $this->dimsFromString( $shipping_matches[ 1 ] );
+                                $this->product_info[ 'shipping_weight' ] = $dims[ 'weight' ];
+                                $this->product_info[ 'shipping_dims' ] = $dims[ 'dims' ];
+                            }
                             $not_valid = false;
                         }
                         else {
@@ -150,7 +156,7 @@ class Parser extends HtmlParser
                 $this->product_info[ 'videos' ][] = [
                     'name' => $this->getProduct(),
                     'provider' => 'youtube',
-                    'video' =>  false === stripos( $iframe->attr(  'src' ), 'https' ) ? 'https://' . ltrim( $iframe->attr(  'src' ), '//' ) : $iframe->attr(  'src' ),
+                    'video' => false === stripos( $iframe->attr( 'src' ), 'https' ) ? 'https://' . ltrim( $iframe->attr( 'src' ), '//' ) : $iframe->attr( 'src' ),
                 ];
             } );
 
