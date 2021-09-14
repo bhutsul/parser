@@ -20,18 +20,35 @@ class Parser extends HtmlParser
         'Assembled Dimensions:',
         'Shipping Dimensions',
     ];
-    public const DIMS_REGEXES = [
-        'shipping_weight' => '/(\d+[.]?\d*)[\s]?lbs|lb/u',
-        'WDH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?W[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?D[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
-        'LWH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?L[^\w\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
-        'LWD' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?L[^\w\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?D/ui',
-        'WLH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?L[^\w\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
-        'WHH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H[^\w\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
-        'DIH' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?dia[.]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
-        'XXX' => '/(\d+[\.]?\d*)[\s]?[x,X][\s]?(\d+[\.]?\d*)[\s]?[x,X]?[\s]?(\d+[\.]?\d*)/ui',
-        'LW' => '/(\d+[\.]?\d*)[^\w\s]?[\s]?L[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?W/ui',
-    ];
     public const WEIGHT_REGEX = '/(\d+[.]?\d*)[\s]?lbs|lb/u';
+    public const DIMS_REGEXES = [
+        'XYZ' => [
+            '/(\d+[\.]?\d*)[^\w\s]?[\s]?L[^\w\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?D/ui',
+            '/(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H[^\w\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
+            '/(\d+[\.]?\d*)[\s]?[x,X][\s]?(\d+[\.]?\d*)[\s]?[x,X]?[\s]?(\d+[\.]?\d*)/ui',
+            '/(\d+[\.]?\d*)[^\w\s]?[\s]?dia[.]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
+        ],
+        'XZY' => [
+            '/(\d+[\.]?\d*)[^\w\s]?[\s]?W[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?D[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
+            '/(\d+[\.]?\d*)[^\w\s]?[\s]?L[^\w\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
+            '/(\d+[\.]?\d*)[^\w\s]?[\s]?W[^\w\s]?[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?L[^\w\s]?[\s]?[x,X]?[\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?H/ui',
+        ],
+        'YZX' => [
+            '/(\d+[\.]?\d*)[^\w\s]?[\s]?L[\s]?[x,X][\s]?(\d+[\.]?\d*)[^\w\s]?[\s]?W/ui',
+        ],
+    ];
+    public const DIMS_KEYS = [
+        'ITEM' => [
+            'Item Dimensions',
+            'Item Dimensions',
+            'assembled dimensions',
+        ],
+        'SHIPPING' => [
+            'Carton Dimensions',
+            'Shipping Dimensions',
+        ],
+    ];
+
 
     private array $product_info;
 
@@ -44,31 +61,20 @@ class Parser extends HtmlParser
             $text = preg_replace( '/[,]?[\s]?weight:[\s]?' . $matches[ 0 ] . '[.]?/i', '', $text );
         }
 
-        if ( preg_match( self::DIMS_REGEXES[ 'WDH' ], $text ) ) {
-            $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'WDH' ] ], 1, 3, 2 );
+        foreach ( self::DIMS_REGEXES as $key => $regexes ) {
+            foreach ( $regexes as $regex ) {
+                if ( preg_match( $regex, $text ) ) {
+                    $dims = match ( $key ) {
+                        'XYZ' => FeedHelper::getDimsRegexp( $text, [ $regex ] ),
+                        'XZY' => FeedHelper::getDimsRegexp( $text, [ $regex ], 1, 3, 2 ),
+                        'YZX' => FeedHelper::getDimsRegexp( $text, [ $regex ], 2, 3, 1 ),
+                    };
+                    break 2;
+                }
+            }
         }
-        else if ( preg_match( self::DIMS_REGEXES[ 'LWH' ], $text ) ) {
-            $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'LWH' ] ], 1, 3, 2 );
-        }
-        else if ( preg_match( self::DIMS_REGEXES[ 'LWD' ], $text ) ) {
-            $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'LWD' ] ] );
-        }
-        else if ( preg_match( self::DIMS_REGEXES[ 'WLH' ], $text ) ) {
-            $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'WLH' ] ], 1, 3, 2 );
-        }
-        else if ( preg_match( self::DIMS_REGEXES[ 'DIH' ], $text ) ) {
-            $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'DIH' ] ] );
-        }
-        else if ( preg_match( self::DIMS_REGEXES[ 'XXX' ], $text ) ) {
-            $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'XXX' ] ] );
-        }
-        else if ( preg_match( self::DIMS_REGEXES[ 'LW' ], $text ) ) {
-            $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'LW' ] ], 2, 3, 1 );
-        }
-        else if ( preg_match( self::DIMS_REGEXES[ 'WHH' ], $text ) ) {
-            $dims = FeedHelper::getDimsRegexp( $text, [ self::DIMS_REGEXES[ 'WHH' ] ] );
-        }
-        else {
+
+        if ( !isset( $dims ) ) {
             $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
         }
 
@@ -86,6 +92,39 @@ class Parser extends HtmlParser
             $this->getVendor()->getDownloader()->setCookie( $cookies[ 0 ], $cookies[ 1 ] );
         }
         $this->node = new ParserCrawler( $this->getVendor()->getDownloader()->get( $this->getUri() )->getData() );
+    }
+
+    public function pushShippingDims( string $text ): void
+    {
+        $dims = $this->dimsFromString( $text );
+        $this->product_info[ 'shipping_weight' ] = $dims[ 'weight' ];
+        $this->product_info[ 'shipping_dims' ] = $dims[ 'dims' ];
+    }
+
+    private function pushDims( string $description ): void
+    {
+        $dims = $this->dimsFromString( $description );
+        $this->product_info[ 'weight' ] = $dims[ 'weight' ];
+        $this->product_info[ 'dims' ] = $dims[ 'dims' ];
+    }
+
+    private function dimsNotValid( ParserCrawler $description ): bool
+    {
+        return false === stripos( $description->text(), 'Provided dimensions ' )
+            && false === stripos( $description->text(), 'dimensions may be rounded' )
+            && (
+                $description->text() === 'Assembled Dimensions: '
+                || $description->exists( 'br' )
+                || false !== stripos( $description->text(), 'Head Unit' )
+            );
+    }
+
+    private function replaceAndGetShippingFromNotValidItemDims( string &$description ): void
+    {
+        if ( preg_match( '/(Carton Dimensions\s*.*s[.]?)/ui', $description, $shipping_matches ) && isset( $shipping_matches[ 1 ] ) ) {
+            $description = str_replace( $shipping_matches[ 1 ], '', $description );
+            $this->pushShippingDims( $shipping_matches[ 1 ] );
+        }
     }
 
     public function beforeParse(): void
@@ -109,41 +148,29 @@ class Parser extends HtmlParser
                         }
                     }
 
-                    if (
-                        false !== stripos( $description, 'Item Dimensions' )
-                        || false !== stripos( $description, 'Item Dimensions' )
-                        || false !== stripos( $description, 'assembled dimensions' )
-                    ) {
-                        if (
-                            false === stripos( $description, 'Provided dimensions ' )
-                            && false === stripos( $description, 'dimensions may be rounded' )
-                            && (
-                                $description === 'Assembled Dimensions: '
-                                || $c->exists( 'br' )
-                                || false !== stripos( $description, 'Head Unit' )
-                            )
-                        ) {
-                            if ( preg_match( '/(Carton Dimensions\s*.*s[.]?)/ui', $description, $shipping_matches ) && isset( $shipping_matches[ 1 ] ) ) {
-                                $description = str_replace( $shipping_matches[ 1 ], '', $description );
-                                $dims = $this->dimsFromString( $shipping_matches[ 1 ] );
-                                $this->product_info[ 'shipping_weight' ] = $dims[ 'weight' ];
-                                $this->product_info[ 'shipping_dims' ] = $dims[ 'dims' ];
+                    foreach ( self::DIMS_KEYS as $key => $texts ) {
+                        foreach ( $texts as $text ) {
+                            if ( false !== stripos( $description, $text ) ) {
+                                $not_valid = true;
+
+                                switch ( $key ) {
+                                    case 'SHIPPING':
+                                        $this->pushShippingDims( $description );
+                                        break;
+                                    case 'ITEM':
+                                        if ( $this->dimsNotValid( $c ) ) {
+                                            $this->replaceAndGetShippingFromNotValidItemDims( $description );
+                                            $not_valid = false;
+                                        }
+                                        else {
+                                            $this->pushDims( $description );
+                                        }
+                                        break;
+                                }
+
+                                break 2;
                             }
-                            $not_valid = false;
                         }
-                        else {
-                            $dims = $this->dimsFromString( $description );
-                            $this->product_info[ 'weight' ] = $dims[ 'weight' ];
-                            $this->product_info[ 'dims' ] = $dims[ 'dims' ];
-                        }
-                    }
-                    else if (
-                        false !== stripos( $description, 'Carton Dimensions' )
-                        || false !== stripos( $description, 'Shipping Dimensions' )
-                    ) {
-                        $dims = $this->dimsFromString( $description );
-                        $this->product_info[ 'shipping_weight' ] = $dims[ 'weight' ];
-                        $this->product_info[ 'shipping_dims' ] = $dims[ 'dims' ];
                     }
 
                     if ( $not_valid === false ) {
