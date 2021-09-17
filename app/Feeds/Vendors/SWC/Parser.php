@@ -591,6 +591,11 @@ class Parser extends HtmlParser
                 }
             } );
 
+        if ( count( $option_groups ) === 0 ) {
+            $this->not_group = true;
+
+            return $child;
+        }
 
         if ( count( $option_groups ) === 1 ) {
             foreach ( $options as $key => $option ) {
