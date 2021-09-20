@@ -4,6 +4,7 @@ namespace App\Feeds\Vendors\PST;
 
 use App\Feeds\Feed\FeedItem;
 use App\Feeds\Processor\HttpProcessor;
+use App\Feeds\Utils\Data;
 
 
 class Vendor extends HttpProcessor
@@ -25,7 +26,14 @@ class Vendor extends HttpProcessor
         'https://www.etsy.com/listing/920777806/double-knot-headband-celtic-knot?ga_order=most_relevant&ga_search_type=all&ga_view_type=gallery&ga_search_query=&ref=sc_gallery-1-1&plkey=ca3f6edb251a8029a0635fba6fcdc792d9e5890d%3A920777806&bes=1',
         'https://www.etsy.com/listing/158391751/awesome-dorotka-traditional-string?ga_order=most_relevant&ga_search_type=all&ga_view_type=gallery&ga_search_query=Marionettes&ref=sr_gallery-1-5&organic_search_click=1&cns=1',
         'https://www.etsy.com/listing/257648566/to-do-planner-stickers?ga_order=most_relevant&ga_search_type=all&ga_view_type=gallery&ga_search_query=&ref=sr_gallery-1-9&pro=1',
+        'https://www.etsy.com/listing/1038629947/rose-gold-wedding-glasses-and-cake?ga_order=most_relevant&ga_search_type=all&ga_view_type=gallery&ga_search_query=&ref=sc_gallery-1-1&plkey=3e92f16e8a9d3f4455b6dd686bee33269d8ca911%3A1038629947&pro=1&frs=1',
     ];
+
+    public function beforeProcess(): void
+    {
+        $this->getDownloader()->removeCookies();
+//        $this->getDownloader()->setCookie('user_prefs', 'BDyTA0mzWY2CZmRsOidxBAP1_spjZACCRA_tQxDaQCdaKTTYRUknrzQnR0cpNU83NFhJRynUESpiBKFwEbEMAA..');
+    }
 
 //    protected function isValidFeedItem(FeedItem $fi ): bool
 //    {

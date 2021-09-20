@@ -236,6 +236,14 @@ class Parser extends HtmlParser
 
     public function beforeParse(): void
     {
+        $this->getVendor()->getDownloader()->get( 'https://www.etsy.com/api/v3/ajax/member/locale-preferences', [
+            'language' => 'ru',
+            'currency' => 'USD',
+            'region' => 'UA',
+        ] );
+
+        $this->node = new ParserCrawler( $this->getVendor()->getDownloader()->get( $this->getUri() )->getData() );
+
         $this->parseJsonOfProduct();
 
         $this->parseAttributesAndShorts();
