@@ -117,7 +117,7 @@ class Parser extends HtmlParser
 
     private function productIsNotValid(): bool
     {
-        return $this->exists( '#variations #personalization' )
+        return ( $this->exists( '#variations #personalization' ) && $this->getAttr( '#variations #personalization textarea', 'aria-required' ) === 'true' )
             || (
                 !empty( $this->product_info[ 'attributes' ] )
                 && in_array( self::DIGITAL_ATTR, array_map( 'strtolower', $this->product_info[ 'short_description' ] ), true )
@@ -133,7 +133,7 @@ class Parser extends HtmlParser
             $name .= $options[ $option_value ][ 'name' ];
             $name .= ': ';
 
-            $options[ $option_value ][ 'value' ] = preg_replace( [ self::PRICE_IN_OPTION_REGEX ], '', $options[ $option_value ][ 'value' ] );
+            $options[ $option_value ][ 'value' ] = trim( preg_replace( [ self::PRICE_IN_OPTION_REGEX, '/\( -\)/' ], '', $options[ $option_value ][ 'value' ] ) );
 
             $name .= $options[ $option_value ][ 'value' ];
             $name .= str_ends_with( $options[ $option_value ][ 'value' ], '.' ) ? ' ' : '. ';
@@ -264,7 +264,7 @@ class Parser extends HtmlParser
 
     public function isGroup(): bool
     {
-        if ( $this->exists( '#variations #personalization' ) ) {
+        if ( $this->exists( '#variations #personalization' ) && $this->getAttr( '#variations #personalization textarea', 'aria-required' ) === 'true' ) {
             return false;
         }
 
