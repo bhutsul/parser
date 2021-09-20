@@ -85,7 +85,7 @@ class Parser extends HtmlParser
         $data = FeedHelper::getShortsAndAttributesInList( $this->getHtml( '#product-details-content-toggle' ) );
 
         $this->product_info[ 'short_description' ] = $data[ 'short_description' ];
-        $this->product_info[ 'attributes' ] = $data[ 'attributes' ];
+        $this->product_info[ 'attributes' ] = array_map( static fn( $attribute ) => trim( str_replace( 'Read the full description', '', $attribute ) ), $data[ 'attributes' ] );
     }
 
     private function parseDescription(): void
@@ -133,7 +133,7 @@ class Parser extends HtmlParser
             $name .= $options[ $option_value ][ 'name' ];
             $name .= ': ';
 
-            $options[ $option_value ][ 'value' ] = preg_replace( [self::PRICE_IN_OPTION_REGEX], '', $options[ $option_value ][ 'value' ]);
+            $options[ $option_value ][ 'value' ] = preg_replace( [ self::PRICE_IN_OPTION_REGEX ], '', $options[ $option_value ][ 'value' ] );
 
             $name .= $options[ $option_value ][ 'value' ];
             $name .= str_ends_with( $options[ $option_value ][ 'value' ], '.' ) ? ' ' : '. ';
@@ -157,7 +157,7 @@ class Parser extends HtmlParser
         }
         $price = new ParserCrawler( $item[ 'price' ] );
 
-        return StringHelper::getFloat( $price->getText( 'p.wt-text-title-03' ) );
+        return StringHelper::getFloat( $price->getText( 'p.wt-text-title-03' ), 0 );
     }
 
     private function getLinksAndPropertiesOfChild(): array
