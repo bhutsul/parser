@@ -16,6 +16,7 @@ class Parser extends HtmlParser
         'Instagram',
         'Facebook',
         'YouTube',
+        'message us',
         'href=',
         '©'
     ];
@@ -120,7 +121,7 @@ class Parser extends HtmlParser
 
     private function productIsNotValid(): bool
     {
-        return ( $this->exists( '#variations #personalization' ) && $this->getAttr( '#variations #personalization textarea', 'aria-required' ) === 'true' )
+        return ( $this->checkIfHasRequiredTextarea() )
             || (
                 !empty( $this->product_info[ 'attributes' ] )
                 && in_array( self::DIGITAL_ATTR, array_map( 'strtolower', $this->product_info[ 'short_description' ] ), true )
@@ -170,7 +171,7 @@ class Parser extends HtmlParser
         $links = [];
         $properties = [];
 
-        $this->filter( '#variations select' )
+        $this->filter( $this->selectorOfChild() )
             ->each( function ( ParserCrawler $select ) use ( &$options, &$option_groups ) {
                 $option_values = [];
 
@@ -178,7 +179,7 @@ class Parser extends HtmlParser
                     ->each( function ( ParserCrawler $option ) use ( &$options, &$option_values, $select ) {
                         if ( $option->attr( 'value' ) && $select->attr( 'id' ) !== 'inventory-variation-select-quantity' ) {
                             $options[ $option->attr( 'value' ) ] = [
-                                'name' => $this->getText( 'label[for="' . $select->attr( 'id' ) . '"]' ),
+                                'name' => $select->parents()->parents()->getText( 'label' ),
                                 'value' => $option->text(),
                                 'id' => $option->attr( 'value' )
                             ];
@@ -237,16 +238,23 @@ class Parser extends HtmlParser
         }
     }
 
+    private function selectorOfChild(): string|false
+    {
+        if ( $this->exists( '[data-component-island-template="listing-page/buy-box/App"]' ) ) {
+            return '[data-component-island-template="listing-page/buy-box/App"] select';
+        }
+
+        return '#variations select';
+    }
+
+    private function checkIfHasRequiredTextarea(): bool
+    {
+        return $this->getAttr( '#variations #personalization textarea', 'aria-required' ) === 'true'
+            || $this->getAttr( '[data-component-island-template="listing-page/buy-box/App"] #personalization textarea', 'aria-required' ) === 'true';
+    }
+
     public function beforeParse(): void
     {
-        $this->getVendor()->getDownloader()->get( 'https://www.etsy.com/api/v3/ajax/member/locale-preferences', [
-            'language' => 'ru',
-            'currency' => 'USD',
-            'region' => 'UA',
-        ] );
-
-        $this->node = new ParserCrawler( $this->getVendor()->getDownloader()->get( $this->getUri() )->getData() );
-
         $this->parseJsonOfProduct();
 
         $this->parseAttributesAndShorts();
@@ -267,13 +275,15 @@ class Parser extends HtmlParser
 
     public function isGroup(): bool
     {
-        if ( $this->exists( '#variations #personalization' ) && $this->getAttr( '#variations #personalization textarea', 'aria-required' ) === 'true' ) {
+        if ( $this->checkIfHasRequiredTextarea() ) {
             return false;
         }
 
-        $count_of_selects = $this->filter( '#variations select' )->count();
+        $selector = $this->selectorOfChild();
 
-        return !( $count_of_selects === 0 || ( $count_of_selects === 1 && $this->getAttr( '#variations select', 'id' ) === self::QUANTITY_SELECT_ID ) );
+        $count_of_selects = $this->filter( $selector )->count();
+
+        return !( $count_of_selects === 0 || ( $count_of_selects === 1 && $this->getAttr( $selector, 'id' ) === self::QUANTITY_SELECT_ID ) );
     }
 
     public function getProduct(): string
