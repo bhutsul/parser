@@ -22,7 +22,7 @@ class Vendor extends HttpProcessor
     public function beforeProcess(): void
     {
         $this->getDownloader()->removeCookies();
-        $this->getDownloader()->setCookie('user_prefs', 'BDyTA0mzWY2CZmRsOidxBAP1_spjZACCRA_tQxDaQCdaKTTYRUknrzQnR0cpNU83NFhJRynUESpiBKFwEbEMAA..');
+        $this->getDownloader()->setCookie('user_prefs', 'NRjsj1bKAcFiwwQg3CnlecNDc9FjZACCRA-zZxC68lC0Umiwi5JOXmlOjo5Sap5uaLCSjhKIAIsYQShcRCwDAA..');
     }
 
 //    protected function isValidFeedItem(FeedItem $fi ): bool

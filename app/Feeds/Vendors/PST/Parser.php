@@ -22,7 +22,10 @@ class Parser extends HtmlParser
     public const DIGITAL_ATTR = 'digital download';
     public const QUANTITY_SELECT_ID = 'inventory-variation-select-quantity';
     public const VARIATIONS_URL = 'https://www.etsy.com/api/v3/ajax/bespoke/member/listings/%s/offerings/find-by-variations';
-    public const PRICE_IN_OPTION_REGEX = '/[\s]?(usd[\s]?\d+[\,]?[\.]?\d*[\,]?[\.]?\d*?)/ui';
+    public const PRICE_IN_OPTION_REGEXES = [
+        '/[\s]?([(]?[usd|\$][\s]?\d+[\,]?[\.]?\d*[\,]?[\.]?\d*?[\s]?-?[\s]?[usd|\$][\s]?\d+[\,]?[\.]?\d*[\,]?[\.]?\d*?[\)]?)/ui',
+        '/[\s]?([\(]?(usd|\$)[\s]?\d+[\,]?[\.]?\d*[\,]?[\.]?\d*?[\)]?)/ui',
+    ];
 
     private array $product_info;
 
@@ -133,7 +136,7 @@ class Parser extends HtmlParser
             $name .= $options[ $option_value ][ 'name' ];
             $name .= ': ';
 
-            $options[ $option_value ][ 'value' ] = trim( preg_replace( [ self::PRICE_IN_OPTION_REGEX, '/\( -\)/' ], '', $options[ $option_value ][ 'value' ] ) );
+            $options[ $option_value ][ 'value' ] = trim( preg_replace( self::PRICE_IN_OPTION_REGEXES, '', $options[ $option_value ][ 'value' ] ) );
 
             $name .= $options[ $option_value ][ 'value' ];
             $name .= str_ends_with( $options[ $option_value ][ 'value' ], '.' ) ? ' ' : '. ';
