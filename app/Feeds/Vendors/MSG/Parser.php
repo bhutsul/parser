@@ -195,7 +195,7 @@ class Parser extends HtmlParser
 
     public function getDescription(): string
     {
-        return $this->description;
+        return !empty( $this->description ) ? $this->description : $this->getProduct();
     }
 
     public function getShortDescription(): array
