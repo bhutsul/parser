@@ -227,7 +227,7 @@ class Parser extends HtmlParser
 
     public function getCategories(): array
     {
-        return array_values( array_slice( $this->getContent( '.breadcrumb a' ), 2, -1 ) );
+        return array_values( array_slice( $this->getContent( '.breadcrumb a' ), 1 ) );
     }
 
     public function getDimX(): ?float
