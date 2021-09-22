@@ -6,7 +6,6 @@ use App\Feeds\Feed\FeedItem;
 use App\Feeds\Parser\HtmlParser;
 use App\Feeds\Utils\ParserCrawler;
 use App\Helpers\FeedHelper;
-use App\Helpers\HttpHelper;
 use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
@@ -24,7 +23,10 @@ class Parser extends HtmlParser
         '/<strong\b[^>]*><span\b[^>]*>\*Receive.*?checkout.<\/strong>/ui',
         '/<strong\b[^>]*>If you need.*?order \*{1,3}<\/strong>/ui',
         '/<br>Approx Dimensions:.*?<br><br>/ui',
+        '/<br>Total Retail.*?<br>/ui',
+        '/<br>\*[\s]Display[\s]Package.*?<\/span><br><br>/ui',
         '/<br><br>Approx. Dimensions:.*?<br><br>/ui',
+        '/<span\b[^>]*><strong><span\b[^>]*>Retail.*?<\/strong><\/span><br>/ui',
     ];
 
     public const FEATURES_REGEXES = [
@@ -125,7 +127,15 @@ class Parser extends HtmlParser
         }
 
         if ( preg_match( '/<br><br>Approx. Dimensions:.*?<br><br>/ui', $description, $matches ) && isset( $matches[ 0 ] ) ) {
-            $dims = FeedHelper::getDimsInString( $matches[ 0 ], 'x' );
+            return FeedHelper::getDimsInString( $matches[ 0 ], 'x' );
+        }
+
+        if ( preg_match( '/Height[:]?[\s]?(\d+[.]?\d*)/ui', $description, $height ) && isset( $height[ 1 ] ) ) {
+            $dims[ 'y' ] = StringHelper::getFloat( $height[ 1 ] );
+        }
+
+        if ( preg_match( '/Width[:]?[\s]?(\d+[.]?\d*)/ui', $description, $width ) && isset( $width[ 1 ] ) ) {
+            $dims[ 'x' ] = StringHelper::getFloat( $width[ 1 ] );
         }
 
         return $dims;
@@ -152,11 +162,6 @@ class Parser extends HtmlParser
 
         $this->short_description = $short_description;
         $this->attributes = $this->validatedAttributes( $attributes );
-    }
-
-    private function formattedImages( array $images ): array
-    {
-        return array_values( array_unique( array_map( static fn( $image ) => 'https://www.miamiwholesalesunglasses.com' . $image, $images ) ) );
     }
 
     private function avail( string $text ): int
@@ -191,7 +196,7 @@ class Parser extends HtmlParser
 
     public function getImages(): array
     {
-        return $this->formattedImages( $this->getAttrs( '.prod-detail-lt a', 'href' ) );
+        return array_values( array_unique( array_map( static fn( $image ) => 'https://www.miamiwholesalesunglasses.com' . $image, $this->getAttrs( '.prod-detail-lt a', 'href' ) ) ) );
     }
 
     public function getAttributes(): ?array
@@ -238,9 +243,8 @@ class Parser extends HtmlParser
                 $name = $option->parents()->parents()->parents()->parents()->getText( '.label' );
                 $name .= str_ends_with( $name, ':' ) ? ' ' : ': ';
                 $name .= $option->text();
-                $name .= str_ends_with( $name, '.' ) ? '' : '.';
 
-                $key = $option->parents()->getAttr('select', 'name');
+                $key = $option->parents()->getAttr( 'select', 'name' );
                 $html = $this->getVendor()->getDownloader()->post( $this->getUri(), [
                     'ctl00$pageContent$scriptManager' => 'ctl00$pageContent$productDetailUpdatePanel|' . $key,
                     '__VIEWSTATE' => $this->getAttr( 'input[name="__VIEWSTATE"]', 'value' ),
@@ -249,12 +253,13 @@ class Parser extends HtmlParser
                 ] )->getData();
 
                 $crawler = new ParserCrawler( $html );
+                $mpn = $crawler->getText( 'span.prod-detail-part-value' );
 
                 $fi = clone $parent_fi;
 
-                $fi->setMpn( $crawler->getText( 'span.prod-detail-part-value' ) );
+                $fi->setMpn( $mpn );
                 $fi->setProduct( $name );
-                $fi->setImages( $this->formattedImages( $crawler->getAttrs( '.prod-detail-lt a', 'href' ) ) );
+                $fi->setImages( array_values( array_filter( $this->getImages(), static fn( $image ) => false !== stripos( $image, str_replace( [ 'RDP-', '-' ], '', $mpn ) ) ) ) );
                 $fi->setCostToUs( $this->getCostToUs() );
                 $fi->setRAvail( $this->avail( $crawler->getText( '.prod-detail-stock' ) ) );
                 $fi->setDimZ( $this->getDimZ() );
