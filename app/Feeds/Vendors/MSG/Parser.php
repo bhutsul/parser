@@ -260,7 +260,6 @@ class Parser extends HtmlParser
                 $fi->setDimZ( $this->getDimZ() );
                 $fi->setDimY( $this->getDimY() );
                 $fi->setDimX( $this->getDimX() );
-                $fi->setWeight( $this->getWeight() );
 
                 $child[] = $fi;
             }
