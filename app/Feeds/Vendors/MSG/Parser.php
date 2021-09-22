@@ -2,6 +2,7 @@
 
 namespace App\Feeds\Vendors\MSG;
 
+use App\Feeds\Feed\FeedItem;
 use App\Feeds\Parser\HtmlParser;
 use App\Feeds\Utils\ParserCrawler;
 use App\Helpers\FeedHelper;
@@ -22,7 +23,11 @@ class Parser extends HtmlParser
         '/<strong\b[^>]*><span\b[^>]*>\*Receive.*?checkout.<\/strong>/ui',
         '/<strong\b[^>]*>If you need.*?order \*{1,3}<\/strong>/ui',
         '/<br>Approx Dimensions:.*?<br><br>/ui',
+        '/<br>Total Retail.*?<br>/ui',
+        '/<br>\*[\s]Display[\s]Package.*?<\/span><br><br>/ui',
         '/<br><br>Approx. Dimensions:.*?<br><br>/ui',
+        '/Depending[\s]on[\s]your[\s]shipping[\s]destination.*?required./ui',
+        '/<span\b[^>]*><strong><span\b[^>]*>Retail.*?<\/strong><\/span><br>/ui',
     ];
 
     public const FEATURES_REGEXES = [
@@ -94,36 +99,6 @@ class Parser extends HtmlParser
         return $validated;
     }
 
-    private function parseOptionBySelectors( &$options, string $select_selector, string $label_selector ): void
-    {
-        $this->filter( $select_selector )->each( function ( ParserCrawler $select ) use ( &$options, $label_selector ) {
-            $name = $select->parents()->parents()->parents()->getText( $label_selector );
-
-            if ( !$name ) {
-                return;
-            }
-            $name = StringHelper::removeSpaces( $name );
-
-            $option_values = [];
-            $select->filter( 'option' )->each( function ( ParserCrawler $option ) use ( &$option_values ) {
-                if ( $option->attr( 'value' ) ) {
-                    foreach ( self::NOT_VALID_OPTIONS as $not_valid_option ) {
-                        if ( false !== stripos( $option->text(), $not_valid_option ) ) {
-                            return;
-                        }
-                    }
-                    $option_values[] = StringHelper::removeSpaces( $option->text() );
-                }
-            } );
-
-            if ( !$option_values ) {
-                return;
-            }
-
-            $options[ $name ] = $option_values;
-        } );
-    }
-
     private function parseDims( string $description ): array
     {
         $dims = [
@@ -153,7 +128,15 @@ class Parser extends HtmlParser
         }
 
         if ( preg_match( '/<br><br>Approx. Dimensions:.*?<br><br>/ui', $description, $matches ) && isset( $matches[ 0 ] ) ) {
-            $dims = FeedHelper::getDimsInString( $matches[ 0 ], 'x' );
+            return FeedHelper::getDimsInString( $matches[ 0 ], 'x' );
+        }
+
+        if ( preg_match( '/Height[:]?[\s]?(\d+[.]?\d*)/ui', $description, $height ) && isset( $height[ 1 ] ) ) {
+            $dims[ 'y' ] = StringHelper::getFloat( $height[ 1 ] );
+        }
+
+        if ( preg_match( '/Width[:]?[\s]?(\d+[.]?\d*)/ui', $description, $width ) && isset( $width[ 1 ] ) ) {
+            $dims[ 'x' ] = StringHelper::getFloat( $width[ 1 ] );
         }
 
         return $dims;
@@ -182,6 +165,15 @@ class Parser extends HtmlParser
         $this->attributes = $this->validatedAttributes( $attributes );
     }
 
+    private function avail( string $text ): int
+    {
+        return $text === 'In Stock' ? self::DEFAULT_AVAIL_NUMBER : 0;
+    }
+
+    public function isGroup(): bool
+    {
+        return $this->exists( '.prod-detail-rt .variationDropdownPanel' );
+    }
 
     public function getProduct(): string
     {
@@ -205,9 +197,7 @@ class Parser extends HtmlParser
 
     public function getImages(): array
     {
-        return array_values( array_unique( array_map( static fn( $image ) => 'https://www.miamiwholesalesunglasses.com' . $image,
-            $this->getAttrs( '.prod-detail-lt a', 'href' )
-        ) ) );
+        return array_values( array_unique( array_map( static fn( $image ) => 'https://www.miamiwholesalesunglasses.com' . $image, $this->getAttrs( '.prod-detail-lt a', 'href' ) ) ) );
     }
 
     public function getAttributes(): ?array
@@ -222,7 +212,7 @@ class Parser extends HtmlParser
 
     public function getAvail(): ?int
     {
-        return $this->getText( '.prod-detail-stock' ) === 'In Stock' ? self::DEFAULT_AVAIL_NUMBER : 0;
+        return $this->avail( $this->getText( '.prod-detail-stock' ) );
     }
 
     public function getCategories(): array
@@ -245,16 +235,76 @@ class Parser extends HtmlParser
         return $this->dims[ 'z' ] ?? null;
     }
 
+    public function getChildProducts( FeedItem $parent_fi ): array
+    {
+        $child = [];
+
+        $this->filter( '.prod-detail-rt .variationDropdownPanel select option' )->each( function ( ParserCrawler $option ) use ( $parent_fi, &$child ) {
+            if ( $option->attr( 'value' ) && false === stripos( $option->attr( 'value' ), 'select' ) ) {
+                $name = $option->parents()->parents()->parents()->parents()->getText( '.label' );
+                $name .= str_ends_with( $name, ':' ) ? ' ' : ': ';
+                $name .= $option->text();
+
+                $key = $option->parents()->getAttr( 'select', 'name' );
+                $html = $this->getVendor()->getDownloader()->post( $this->getUri(), [
+                    'ctl00$pageContent$scriptManager' => 'ctl00$pageContent$productDetailUpdatePanel|' . $key,
+                    '__VIEWSTATE' => $this->getAttr( 'input[name="__VIEWSTATE"]', 'value' ),
+                    '__EVENTVALIDATION' => $this->getAttr( 'input[name="__EVENTVALIDATION"]', 'value' ),
+                    $key => $option->attr( 'value' ),
+                ] )->getData();
+
+                $crawler = new ParserCrawler( $html );
+                $mpn = $crawler->getText( 'span.prod-detail-part-value' );
+
+                $fi = clone $parent_fi;
+
+                $fi->setMpn( $mpn );
+                $fi->setProduct( $name );
+                $fi->setImages( array_values( array_filter( $this->getImages(), static fn( $image ) => false !== stripos( $image, str_replace( [ 'RDP-', '-' ], '', $mpn ) ) ) ) );
+                $fi->setCostToUs( $this->getCostToUs() );
+                $fi->setRAvail( $this->avail( $crawler->getText( '.prod-detail-stock' ) ) );
+                $fi->setDimZ( $this->getDimZ() );
+                $fi->setDimY( $this->getDimY() );
+                $fi->setDimX( $this->getDimX() );
+
+                $child[] = $fi;
+            }
+        } );
+
+        return $child;
+    }
+
     public function getOptions(): array
     {
         $options = [];
 
         if ( $this->exists( '#ctl00_pageContent_ppQuestions_questions' ) ) {
-            $this->parseOptionBySelectors( $options, '#ctl00_pageContent_ppQuestions_questions select', '.personalization-question-label' );
-        }
+            $this->filter( '#ctl00_pageContent_ppQuestions_questions select' )->each( function ( ParserCrawler $select ) use ( &$options ) {
+                $name = $select->parents()->parents()->parents()->getText( '.personalization-question-label' );
 
-        if ( $this->exists( '.prod-detail-rt .variationDropdownPanel' ) ) {
-            $this->parseOptionBySelectors( $options, '.prod-detail-rt .variationDropdownPanel select', 'span.label' );
+                if ( !$name ) {
+                    return;
+                }
+                $name = StringHelper::removeSpaces( $name );
+
+                $option_values = [];
+                $select->filter( 'option' )->each( function ( ParserCrawler $option ) use ( &$option_values ) {
+                    if ( $option->attr( 'value' ) ) {
+                        foreach ( self::NOT_VALID_OPTIONS as $not_valid_option ) {
+                            if ( false !== stripos( $option->text(), $not_valid_option ) ) {
+                                return;
+                            }
+                        }
+                        $option_values[] = StringHelper::removeSpaces( $option->text() );
+                    }
+                } );
+
+                if ( !$option_values ) {
+                    return;
+                }
+
+                $options[ $name ] = $option_values;
+            } );
         }
 
         return $options;
