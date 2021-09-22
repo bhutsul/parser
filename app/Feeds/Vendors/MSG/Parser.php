@@ -26,6 +26,7 @@ class Parser extends HtmlParser
         '/<br>Total Retail.*?<br>/ui',
         '/<br>\*[\s]Display[\s]Package.*?<\/span><br><br>/ui',
         '/<br><br>Approx. Dimensions:.*?<br><br>/ui',
+        '/Depending[\s]on[\s]your[\s]shipping[\s]destination.*?required./ui',
         '/<span\b[^>]*><strong><span\b[^>]*>Retail.*?<\/strong><\/span><br>/ui',
     ];
 
