@@ -31,6 +31,7 @@ class Parser extends HtmlParser
         'Each wire light is',
         'href=',
         '©',
+        'our store',
     ];
     public const DIGITAL_ATTR = 'digital download';
     public const QUANTITY_SELECT_ID = 'inventory-variation-select-quantity';

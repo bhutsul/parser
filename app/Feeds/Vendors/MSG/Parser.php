@@ -22,16 +22,18 @@ class Parser extends HtmlParser
     public const NOT_VALID_PARTS_OF_DESC_REGEXES = [
         '/<strong\b[^>]*><span\b[^>]*>\*Receive.*?checkout.<\/strong>/ui',
         '/<strong\b[^>]*>If you need.*?order \*{1,3}<\/strong>/ui',
+        '/<p><strong>[\s]?<span\b[^>]*>BULK PRICING:.*?<\/table>/ui',
         '/<br>Approx Dimensions:.*?<br><br>/ui',
-        '/<br>Total Retail.*?<br>/ui',
+//        '/<br>Total Retail.*?<br>/ui',
+        '/<br><strong>Retail Value:.*?<br><br>/si',
         '/<br>\*[\s]Display[\s]Package.*?<\/span><br><br>/ui',
         '/<br><br>Approx. Dimensions:.*?<br><br>/ui',
         '/Depending[\s]on[\s]your[\s]shipping[\s]destination.*?required./ui',
         '/<span\b[^>]*><strong><span\b[^>]*>Retail.*?<\/strong><\/span><br>/ui',
         '/<span\b[^>]*><strong>\*[\s]Please Note.*?<br><br>/ui',
         '/<p><span\b[^>]*>For larger.*?<\/span><\/p>/ui',
-        '/(Approx)?[\s]?Height[:]?[\s]?\d+[.]?\d*[\s]?(inches.)?/ui',
-        '/(Approx)?[\s]?Width[:]?[\s]?\d+[.]?\d*[\s]?(inches.)?/ui',
+        '/(Approx)?[\s]?Height[:]?[\s]?\d+[.]?\d*[\s]?(inches[.]?)?/ui',
+        '/(Approx)?[\s]?Width[:]?[\s]?\d+[.]?\d*[\s]?(inches[.]?)?/ui',
     ];
 
     public const FEATURES_REGEXES = [
@@ -146,6 +148,11 @@ class Parser extends HtmlParser
         return $dims;
     }
 
+    private function avail( string $text ): int
+    {
+        return $text === 'In Stock' ? self::DEFAULT_AVAIL_NUMBER : 0;
+    }
+
     public function beforeParse(): void
     {
         $this->name = $this->getText( '#product-detail-div h1' );
@@ -157,7 +164,7 @@ class Parser extends HtmlParser
             $description = $this->getHtml( '.prod-detail-desc' );
             $this->dims = $this->parseDims( $description );
 
-            $description = (string)preg_replace( self::NOT_VALID_PARTS_OF_DESC_REGEXES, '', $description );
+            $description = (string)preg_replace( self::NOT_VALID_PARTS_OF_DESC_REGEXES, '', StringHelper::removeSpaces($description) );
             $additional_info = FeedHelper::getShortsAndAttributesInDescription( $description, self::FEATURES_REGEXES, $short_description, $attributes );
             $short_description = $additional_info[ 'short_description' ];
             $attributes = $additional_info[ 'attributes' ];
@@ -169,14 +176,17 @@ class Parser extends HtmlParser
         $this->attributes = $this->validatedAttributes( $attributes );
     }
 
-    private function avail( string $text ): int
-    {
-        return $text === 'In Stock' ? self::DEFAULT_AVAIL_NUMBER : 0;
-    }
-
     public function isGroup(): bool
     {
         return $this->exists( '.prod-detail-rt .variationDropdownPanel' );
+    }
+
+    public function getMinAmount(): ?int
+    {
+        if ( !$this->exists( '#ctl00_pageContent_txtQuantity' ) ) {
+            return null;
+        }
+        return $this->getAttr( '#ctl00_pageContent_txtQuantity', 'value' );
     }
 
     public function getProduct(): string
