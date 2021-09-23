@@ -17,8 +17,19 @@ class Parser extends HtmlParser
         'Facebook',
         'YouTube',
         'message us',
+        'message me',
+        'SHIPPING',
+        'Domestic',
+        'usually shipped',
+        'We use USPS mail services',
+        'Domestic',
+        'class mail',
+        'Priority mail',
+        'International',
+        'No tracking information',
+        'Each wire light is',
         'href=',
-        '©'
+        '©',
     ];
     public const DIGITAL_ATTR = 'digital download';
     public const QUANTITY_SELECT_ID = 'inventory-variation-select-quantity';
@@ -73,7 +84,7 @@ class Parser extends HtmlParser
                     $this->product_info[ 'videos' ][] = [
                         'name' => $json[ 'name' ],
                         'provider' => 'etsystatic',
-                        'video' => $json[ 'contentUrl' ]
+                        'video' => $json[ 'contentUrl' ],
                     ];
                     break;
             }
@@ -150,7 +161,7 @@ class Parser extends HtmlParser
 
         return [
             'name' => $name,
-            'mpn' => $mpn
+            'mpn' => $mpn,
         ];
     }
 
@@ -181,7 +192,7 @@ class Parser extends HtmlParser
                             $options[ $option->attr( 'value' ) ] = [
                                 'name' => $select->parents()->parents()->getText( 'label' ),
                                 'value' => $option->text(),
-                                'id' => $option->attr( 'value' )
+                                'id' => $option->attr( 'value' ),
                             ];
                             $option_values[] = $option->attr( 'value' );
                         }
@@ -196,7 +207,7 @@ class Parser extends HtmlParser
         if ( count( $option_groups ) === 1 ) {
             foreach ( $options as $option ) {
                 $link = new Link( $variation_url, 'GET', [
-                    'listing_variation_ids' => $option[ 'id' ]
+                    'listing_variation_ids' => $option[ 'id' ],
                 ] );
 
                 $properties[ $link->getUrl() ] = $this->nameAndMpnOfChild( [ $option[ 'id' ] ], $options );
@@ -208,7 +219,7 @@ class Parser extends HtmlParser
 
             foreach ( $combination_of_groups as $option_values ) {
                 $link = new Link( $variation_url . '?' . http_build_query( [
-                        'listing_variation_ids' => $option_values
+                        'listing_variation_ids' => $option_values,
                     ] ) );
 
                 $properties[ $link->getUrl() ] = $this->nameAndMpnOfChild( $option_values, $options );
@@ -218,7 +229,7 @@ class Parser extends HtmlParser
 
         return [
             'links' => $links,
-            'properties' => $properties
+            'properties' => $properties,
         ];
     }
 
@@ -226,12 +237,12 @@ class Parser extends HtmlParser
     {
         $initial_data = $this->getLinksAndPropertiesOfChild();
 
-        $child = $this->getVendor()->getDownloader()->fetch( $initial_data[ 'links' ], true );
+        $child = $this->getVendor()->getDownloader()->fetch( $initial_data[ 'links' ] );
 
         foreach ( $child as $item ) {
-            $json = json_decode( $item[ 'data' ]->getData(), true, 512, JSON_THROW_ON_ERROR );
+            $json = json_decode( $item->getData(), true, 512, JSON_THROW_ON_ERROR );
 
-            $properties = $initial_data[ 'properties' ][ $item[ 'link' ][ 'url' ] ];
+            $properties = $initial_data[ 'properties' ][ $item->getPageLink()->getUrl() ];
             $properties[ 'price' ] = $this->priceOfChildFromResponse( $json );
 
             yield $properties;
@@ -338,7 +349,7 @@ class Parser extends HtmlParser
 
     public function getCategories(): array
     {
-        return isset( $this->product_info[ 'category' ] ) ? array_map( static fn( $category ) => mb_strtolower( trim( $category ) ), explode( '<', $this->product_info[ 'category' ] ) ) : [];
+        return isset( $this->product_info[ 'category' ] ) ? array_slice( array_map( static fn( $category ) => mb_strtolower( trim( $category ) ), explode( '<', $this->product_info[ 'category' ] ) ), 0, 5 ) : [];
     }
 
     public function getChildProducts( FeedItem $parent_fi ): array

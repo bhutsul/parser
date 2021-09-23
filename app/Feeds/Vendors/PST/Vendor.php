@@ -24,15 +24,15 @@ class Vendor extends HttpProcessor
         $this->getDownloader()->setCookie('user_prefs', 'NRjsj1bKAcFiwwQg3CnlecNDc9FjZACCRA-zZxC68lC0Umiwi5JOXmlOjo5Sap5uaLCSjhKIAIsYQShcRCwDAA..');
     }
 
-//    protected function isValidFeedItem(FeedItem $fi ): bool
-//    {
-//        if ( $fi->isGroup() ) {
-//            $fi->setChildProducts( array_values(
-//                array_filter( $fi->getChildProducts(), static fn( FeedItem $item ) => !empty( $item->getMpn() ) && count( $item->getImages() ) && $item->getCostToUs() > 0 )
-//            ) );
-//            return count( $fi->getChildProducts() );
-//        }
-//
-//        return !empty( $fi->getMpn() ) && count( $fi->getImages() ) && $fi->getCostToUs() > 0;
-//    }
+    protected function isValidFeedItem(FeedItem $fi ): bool
+    {
+        if ( $fi->isGroup() ) {
+            $fi->setChildProducts( array_values(
+                array_filter( $fi->getChildProducts(), static fn( FeedItem $item ) => !empty( $item->getMpn() ) && count( $item->getImages() ) && $item->getCostToUs() > 0 )
+            ) );
+            return count( $fi->getChildProducts() );
+        }
+
+        return !empty( $fi->getMpn() ) && count( $fi->getImages() ) && $fi->getCostToUs() > 0;
+    }
 }
