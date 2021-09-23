@@ -28,6 +28,10 @@ class Parser extends HtmlParser
         '/<br><br>Approx. Dimensions:.*?<br><br>/ui',
         '/Depending[\s]on[\s]your[\s]shipping[\s]destination.*?required./ui',
         '/<span\b[^>]*><strong><span\b[^>]*>Retail.*?<\/strong><\/span><br>/ui',
+        '/<span\b[^>]*><strong>\*[\s]Please Note.*?<br><br>/ui',
+        '/<p><span\b[^>]*>For larger.*?<\/span><\/p>/ui',
+        '/(Approx)?[\s]?Height[:]?[\s]?\d+[.]?\d*[\s]?(inches.)?/ui',
+        '/(Approx)?[\s]?Width[:]?[\s]?\d+[.]?\d*[\s]?(inches.)?/ui',
     ];
 
     public const FEATURES_REGEXES = [
