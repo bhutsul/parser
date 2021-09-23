@@ -4,6 +4,7 @@ namespace App\Feeds\Vendors\PST;
 
 use App\Feeds\Feed\FeedItem;
 use App\Feeds\Parser\HtmlParser;
+use App\Feeds\Utils\Data;
 use App\Feeds\Utils\Link;
 use App\Feeds\Utils\ParserCrawler;
 use App\Helpers\FeedHelper;
@@ -262,6 +263,19 @@ class Parser extends HtmlParser
     {
         return $this->getAttr( '#variations #personalization textarea', 'aria-required' ) === 'true'
             || $this->getAttr( '[data-component-island-template="listing-page/buy-box/App"] #personalization textarea', 'aria-required' ) === 'true';
+    }
+
+    public function parseContent( Data $data, array $params = [] ): array
+    {
+        if ( !StringHelper::isNotEmpty( $data->getData() ) ) {
+            $data = $this->getVendor()->getDownloader()->get( $params[ 'url' ] );
+        }
+
+        if ( !StringHelper::isNotEmpty( $data->getData() ) ) {
+            return [];
+        }
+
+        return parent::parseContent( $data, $params );
     }
 
     public function beforeParse(): void
