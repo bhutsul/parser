@@ -164,7 +164,7 @@ class Parser extends HtmlParser
             $description = $this->getHtml( '.prod-detail-desc' );
             $this->dims = $this->parseDims( $description );
 
-            $description = (string)preg_replace( self::NOT_VALID_PARTS_OF_DESC_REGEXES, '', StringHelper::removeSpaces($description) );
+            $description = (string)preg_replace( self::NOT_VALID_PARTS_OF_DESC_REGEXES, '', StringHelper::removeSpaces( $description ) );
             $additional_info = FeedHelper::getShortsAndAttributesInDescription( $description, self::FEATURES_REGEXES, $short_description, $attributes );
             $short_description = $additional_info[ 'short_description' ];
             $attributes = $additional_info[ 'attributes' ];
