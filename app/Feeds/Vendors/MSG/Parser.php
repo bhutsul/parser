@@ -156,7 +156,7 @@ class Parser extends HtmlParser
 
     public function beforeParse(): void
     {
-        $this->name = $this->getText( '#product-detail-div h1' );
+        $this->name = trim( str_replace( $this->getMpn(), '', $this->getText( '#product-detail-div h1' ) ), ' - ' );
         $this->price = $this->parsePrice();
 
         [ $short_description, $attributes ] = $this->parseAttributesAndShorts();
@@ -184,10 +184,7 @@ class Parser extends HtmlParser
 
     public function getMinAmount(): ?int
     {
-        if ( !$this->exists( '#ctl00_pageContent_txtQuantity' ) ) {
-            return null;
-        }
-        return $this->getAttr( '#ctl00_pageContent_txtQuantity', 'value' );
+        return !$this->exists( '#ctl00_pageContent_txtQuantity' ) ? (int)$this->getAttr( '#ctl00_pageContent_txtQuantity', 'value' ) : 1;
     }
 
     public function getProduct(): string

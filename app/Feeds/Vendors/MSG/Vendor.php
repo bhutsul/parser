@@ -9,6 +9,8 @@ class Vendor extends SitemapHttpProcessor
 {
     protected array $first = ['https://www.miamiwholesalesunglasses.com/xml-sitemap.ashx'];
 
+    public array $custom_products = ['https://www.miamiwholesalesunglasses.com/giselle-sunglasses---8gsl28108.aspx'];
+
     protected function isValidFeedItem(FeedItem $fi ): bool
     {
         if ( $fi->isGroup() ) {
