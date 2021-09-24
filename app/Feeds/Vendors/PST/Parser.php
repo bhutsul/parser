@@ -32,6 +32,21 @@ class Parser extends HtmlParser
         'href=',
         '©',
         'our store',
+        'Contacting us',
+        'Customer service',
+        'www.',
+        'IN STOCK',
+        'Gift Note',
+        'discount offer',
+        'Coupon Code',
+        'purchase',
+        'customer service',
+        'http:',
+        'Feedback',
+        'order',
+        'Postage',
+        'delivery',
+        '$',
     ];
     public const DIGITAL_ATTR = 'digital download';
     public const QUANTITY_SELECT_ID = 'inventory-variation-select-quantity';
@@ -115,6 +130,11 @@ class Parser extends HtmlParser
         $parts_of_description = array_values( array_filter( explode( '<br>', $this->getHtml( '[data-id="description-text"] p' ) ) ) );
 
         foreach ( $parts_of_description as $key => $text ) {
+            if ( false !== stripos( $text, 'Overall size' ) ) {
+                $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $text, 'x' );
+                continue;
+            }
+
             if ( $this->descriptionIsValid( $parts_of_description, $key, $text ) ) {
                 $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
             }
@@ -365,6 +385,21 @@ class Parser extends HtmlParser
     public function getCategories(): array
     {
         return isset( $this->product_info[ 'category' ] ) ? array_slice( array_map( static fn( $category ) => mb_strtolower( trim( $category ) ), explode( '<', $this->product_info[ 'category' ] ) ), 0, 5 ) : [];
+    }
+
+    public function getDimX(): ?float
+    {
+        return $this->product_info['dims'][ 'x' ] ?? null;
+    }
+
+    public function getDimY(): ?float
+    {
+        return $this->product_info['dims'][ 'y' ] ?? null;
+    }
+
+    public function getDimZ(): ?float
+    {
+        return $this->product_info['dims'][ 'z' ] ?? null;
     }
 
     public function getChildProducts( FeedItem $parent_fi ): array
