@@ -154,9 +154,52 @@ class Parser extends HtmlParser
         return $text === 'In Stock' ? self::DEFAULT_AVAIL_NUMBER : 0;
     }
 
+    private function replaceMpnFromName( string $name, string $mpn ): string
+    {
+        return trim( str_ireplace( $mpn, '', $name ), ' - ' );
+    }
+
+    private function getLongestCommonSubsequence( $str1, $str2 ): string
+    {
+        if ( strtolower( $str1 ) === strtolower( $str2 ) ) {
+            return $str1;
+        }
+
+        $delimiter = '#';
+
+        $l1 = strlen( $str1 );
+        $l2 = strlen( $str2 );
+        $str = $l1 <= $l2 ? $str1 : $str2;
+        $str2 = $l1 <= $l2 ? $str2 : $str1;
+        $l = min( $l1, $l2 );
+
+        if ( stripos( $str2, $str ) !== false ) {
+            return $str;
+        }
+
+        $reg = $delimiter;
+        for ( $i = 0; $i < $l; $i++ ) {
+            $a = preg_quote( $str[ $i ], $delimiter );
+            $b = $i + 1 < $l ? preg_quote( $str[ $i + 1 ], $delimiter ) : false;
+            $reg .= sprintf( $b !== false ? '(?:%s(?=%s))?' : '(?:.|%s)?', $a, $b );
+        }
+        $reg .= $delimiter;
+        $reg .= 'i';
+        $str = $l1 <= $l2 ? $str2 : $str1;
+        if ( preg_match_all( $reg, $str, $matches ) ) {
+            return array_reduce( $matches[ 0 ], static function ( $a, $b ) {
+                $al = strlen( $a );
+                $bl = strlen( $b );
+                return $al >= $bl || $bl <= 1 ? $a : $b;
+            }, '' );
+        }
+
+        return '';
+    }
+
     public function beforeParse(): void
     {
-        $this->name = trim( str_replace( $this->getMpn(), '', $this->getText( '#product-detail-div h1' ) ), ' - ' );
+        $this->name = $this->replaceMpnFromName( $this->getText( '#product-detail-div h1' ), $this->getMpn() );
         $this->price = $this->parsePrice();
 
         [ $short_description, $attributes ] = $this->parseAttributesAndShorts();
@@ -251,7 +294,8 @@ class Parser extends HtmlParser
     {
         $child = [];
 
-        $this->filter( '.prod-detail-rt .variationDropdownPanel select option' )->each( function ( ParserCrawler $option ) use ( $parent_fi, &$child ) {
+        $mpn = '';
+        $this->filter( '.prod-detail-rt .variationDropdownPanel select option' )->each( function ( ParserCrawler $option ) use ( $parent_fi, &$child, &$mpn ) {
             if ( $option->attr( 'value' ) && false === stripos( $option->attr( 'value' ), 'select' ) ) {
                 $name = $option->parents()->parents()->parents()->parents()->getText( '.label' );
                 $name .= str_ends_with( $name, ':' ) ? ' ' : ': ';
@@ -282,6 +326,8 @@ class Parser extends HtmlParser
                 $child[] = $fi;
             }
         } );
+
+        $parent_fi->setProduct( $this->replaceMpnFromName( $this->name, $this->getLongestCommonSubsequence( $mpn, $this->name ) ) );
 
         return $child;
     }
