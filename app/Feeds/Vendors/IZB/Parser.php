@@ -14,29 +14,25 @@ class Parser extends HtmlParser
 
     public const NOT_VALID_PARTS_OF_DESC_REGEXES = [
         '/<p><strong\b[^>]*>UPC.*?<\/strong><\/p>/si',
+        '/(<a\b[^>]*>|<\/a>)/si',
         '/(Best On|Heat Level|Best With|www.BestNaturalBBQ.com|Tastings.com)[:]?/si',
+        '/In cases of extreme addiction contact us.*?Bacon Salt./si',
     ];
 
-    private function parsedDescription(): string
+    private function parseDescriptionShortAndAttributes(): void
     {
-        if ( !$this->exists( '#tab-description' ) ) {
-            return '';
-        }
-
-        $description = StringHelper::removeSpaces(preg_replace( self::NOT_VALID_PARTS_OF_DESC_REGEXES, '', $this->getHtml( '#tab-description' ) ));
+        $description = preg_replace( self::NOT_VALID_PARTS_OF_DESC_REGEXES, '', $this->getHtml( '#tab-description' ) );
 
         if ( $this->exists( '#tab-ywtm_11087' ) ) {
             $description .= '<p>Ingredients</p>';
             $description .= '<p>' . $this->getText( '#tab-ywtm_11087 p' ) . '</p>';
         }
 
-        if ( empty( $description ) ) {
-            return '';
-        }
+        $additional_info = FeedHelper::getShortsAndAttributesInDescription( $description, [ '/(<[u|o]l>)?(\s+)?(?<content_list><li>.*?<\/li>)(\s+)?<\/[u|o]l>/is' ] );
 
-        $description = ( new ParserCrawler( $description ) )->text();
-
-        return StringHelper::isNotEmpty( $description ) ? $description : $this->getProduct();
+        $this->product_info[ 'attributes' ] = $additional_info[ 'attributes' ];
+        $this->product_info[ 'short_description' ] = $additional_info[ 'short_description' ];
+        $this->product_info[ 'description' ] = $additional_info[ 'description' ];
     }
 
     private function parseDimsAndAttributes(): void
@@ -60,6 +56,11 @@ class Parser extends HtmlParser
         }
     }
 
+    private function productNotValid()
+    {
+        return false !== stripos( $this->getProduct(), 'gift card' );
+    }
+
     public function beforeParse(): void
     {
         preg_match( '/<script type="application\/ld\+json">\s*({.*?})\s*<\/script>/s', $this->node->html(), $matches );
@@ -74,7 +75,19 @@ class Parser extends HtmlParser
                 $this->product_info[ 'offer' ] = $this->product_info[ 'offers' ][ $offer_key ];
 
                 $this->parseDimsAndAttributes();
+                $this->parseDescriptionShortAndAttributes();
             }
+        }
+    }
+
+    public function afterParse( FeedItem $fi ): void
+    {
+        if ( $this->productNotValid() ) {
+            $fi->setIsGroup( false );
+            $fi->setCostToUs( 0 );
+            $fi->setRAvail( 0 );
+            $fi->setMpn( '' );
+            $fi->setImages( [] );
         }
     }
 
@@ -85,6 +98,10 @@ class Parser extends HtmlParser
 
     public function isGroup(): bool
     {
+        if ( $this->productNotValid() ) {
+            return false;
+        }
+
         return $this->exists( '.variations_form' );
     }
 
@@ -100,7 +117,12 @@ class Parser extends HtmlParser
 
     public function getDescription(): string
     {
-        return $this->parsedDescription();
+        return $this->product_info[ 'description' ] ?? $this->getProduct();
+    }
+
+    public function getShortDescription(): array
+    {
+        return $this->product_info[ 'short_description' ] ?? [];
     }
 
     public function getImages(): array
@@ -169,7 +191,7 @@ class Parser extends HtmlParser
 
             $fi->setProduct( $product_name );
             $fi->setMpn( $sku );
-            $fi->setImages( [ $variation[ 'image' ][ 'url' ] ] ?: $this->getImages() );
+            $fi->setImages( in_array( $variation[ 'image' ][ 'url' ], $fi->images, true ) && count( $fi->images ) > 1 ? $fi->images : [ $variation[ 'image' ][ 'url' ] ] );
             $fi->setCostToUs( StringHelper::getMoney( $variation[ 'display_price' ] ) );
             $fi->setRAvail( $variation[ 'is_in_stock' ] ? self::DEFAULT_AVAIL_NUMBER : 0 );
             $fi->setDimZ( $variation[ 'dimensions' ][ 'width' ] ?: $this->getDimZ() );
