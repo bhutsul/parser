@@ -9,6 +9,7 @@ use App\Feeds\Utils\Link;
 use App\Feeds\Utils\ParserCrawler;
 use App\Helpers\FeedHelper;
 use App\Helpers\StringHelper;
+use Exception;
 use Generator;
 
 class Parser extends HtmlParser
@@ -35,18 +36,21 @@ class Parser extends HtmlParser
         'Contacting us',
         'Customer service',
         'www.',
+        '.com',
         'IN STOCK',
         'Gift Note',
         'discount offer',
         'Coupon Code',
         'purchase',
-        'customer service',
         'http:',
+        'https:',
         'Feedback',
-        'order',
         'Postage',
         'delivery',
         '$',
+        'contact us',
+        '£',
+        'wholesale',
     ];
     public const DIGITAL_ATTR = 'digital download';
     public const QUANTITY_SELECT_ID = 'inventory-variation-select-quantity';
@@ -127,7 +131,7 @@ class Parser extends HtmlParser
         }
 
         $this->product_info[ 'description' ] = '';
-        $parts_of_description = array_values( array_filter( explode( '<br>', $this->getHtml( '[data-id="description-text"] p' ) ) ) );
+        $parts_of_description = array_values( array_filter( explode( '<br><br>', $this->getHtml( '[data-id="description-text"] p' ) ) ) );
 
         foreach ( $parts_of_description as $key => $text ) {
             if ( false !== stripos( $text, 'Overall size' ) ) {
@@ -136,7 +140,10 @@ class Parser extends HtmlParser
             }
 
             if ( $this->descriptionIsValid( $parts_of_description, $key, $text ) ) {
-                $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
+                $text = trim( $text, " \t\n\r\0\x0B-" );
+                if ( StringHelper::isNotEmpty( $text ) ) {
+                    $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
+                }
             }
         }
     }
@@ -262,7 +269,11 @@ class Parser extends HtmlParser
         $child = $this->getVendor()->getDownloader()->fetch( $initial_data[ 'links' ] );
 
         foreach ( $child as $item ) {
-            $json = json_decode( $item->getData(), true, 512, JSON_THROW_ON_ERROR );
+            try {
+                $json = json_decode( $item->getData(), true, 512, JSON_THROW_ON_ERROR );
+            } catch ( Exception ) {
+                $json = [];
+            }
 
             $properties = $initial_data[ 'properties' ][ $item->getPageLink()->getUrl() ];
             $properties[ 'price' ] = $this->priceOfChildFromResponse( $json );
@@ -359,7 +370,7 @@ class Parser extends HtmlParser
 
     public function getDescription(): string
     {
-        return $this->product_info[ 'description' ] ?? '';
+        return $this->product_info[ 'description' ] ?? $this->getProduct();
     }
 
     public function getImages(): array
@@ -389,17 +400,17 @@ class Parser extends HtmlParser
 
     public function getDimX(): ?float
     {
-        return $this->product_info['dims'][ 'x' ] ?? null;
+        return $this->product_info[ 'dims' ][ 'x' ] ?? null;
     }
 
     public function getDimY(): ?float
     {
-        return $this->product_info['dims'][ 'y' ] ?? null;
+        return $this->product_info[ 'dims' ][ 'y' ] ?? null;
     }
 
     public function getDimZ(): ?float
     {
-        return $this->product_info['dims'][ 'z' ] ?? null;
+        return $this->product_info[ 'dims' ][ 'z' ] ?? null;
     }
 
     public function getChildProducts( FeedItem $parent_fi ): array
