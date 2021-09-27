@@ -3,6 +3,7 @@
 namespace App\Feeds\Vendors\PBS;
 
 use App\Feeds\Parser\HtmlParser;
+use App\Feeds\Utils\Link;
 use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
@@ -13,6 +14,8 @@ class Parser extends HtmlParser
         'No Credit Needed',
         'Click Banner',
     ];
+
+    public const REQUEST_PAYLOAD = '1cc57b09497262e8bab57ecc8dd9af46-0!722a387c~attempt1*7|1|7|https://app.ecwid.com/|BF7357332C74F21A3FF282EDEECCAE15|_|getOriginalProduct|4d|I|Z|1|2|3|4|3|5|6|7|0|%s|0|';
 
     private function descriptionIsValid( string $text ): bool
     {
@@ -27,6 +30,12 @@ class Parser extends HtmlParser
 
     public function beforeParse(): void
     {
+        preg_match( '/p(\d+)/', $this->getUri(), $payload_match );
+        if ( isset( $payload_match[ 1 ] ) ) {
+            $test = $this->getVendor()->getDownloader()->post(  'https://app.ecwid.com/rpc?ownerid=47528127&customerlang=en&version=2021-37865-g11365a50609', [
+                 sprintf(self::REQUEST_PAYLOAD, $payload_match[ 1 ])
+            ], 'request_payload'  );
+        }
         preg_match( '/<script type="application\/ld\+json">\s*({.*?})\s*<\/script>/s', $this->node->html(), $matches );
         if ( isset( $matches[ 1 ] ) ) {
             $this->product_info = json_decode( $matches[ 1 ], true, 512, JSON_THROW_ON_ERROR );
@@ -58,7 +67,7 @@ class Parser extends HtmlParser
 
     public function getProduct(): string
     {
-        return $this->product_info[ 'name' ] ?? $this->getText( '[itemprop="name"]' );
+        return $this->product_info[ 'name' ] ?? '';
     }
 
     public function getMpn(): string

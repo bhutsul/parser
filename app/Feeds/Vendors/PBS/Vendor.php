@@ -9,16 +9,10 @@ use App\Feeds\Utils\Link;
 class Vendor extends SitemapHttpProcessor
 {
     protected array $first = ['https://pricebusters.furniture/sitemap.xml'];
+    public array $custom_products = ['https://pricebusters.furniture/8517-Full-Size-Broadway-Plush-Mattress-p307287712'];
 
-//    protected function isValidFeedItem(FeedItem $fi ): bool
-//    {
-//        if ( $fi->isGroup() ) {
-//            $fi->setChildProducts( array_values(
-//                array_filter( $fi->getChildProducts(), static fn( FeedItem $item ) => !empty( $item->getMpn() ) && count( $item->getImages() ) && $item->getCostToUs() > 0 )
-//            ) );
-//            return count( $fi->getChildProducts() );
-//        }
-//
-//        return !empty( $fi->getMpn() ) && count( $fi->getImages() ) && $fi->getCostToUs() > 0;
-//    }
+    protected function isValidFeedItem(FeedItem $fi ): bool
+    {
+        return !empty( $fi->getMpn() ) && count( $fi->getImages() ) && $fi->getCostToUs() > 0;
+    }
 }
