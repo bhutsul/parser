@@ -3,7 +3,6 @@
 namespace App\Feeds\Vendors\PBS;
 
 use App\Feeds\Parser\HtmlParser;
-use App\Feeds\Utils\ParserCrawler;
 use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
@@ -11,8 +10,8 @@ class Parser extends HtmlParser
     private array $product_info;
 
     public const NOT_VALID_PARTS_OF_DESC = [
-        'Instagram',
-        'Facebook',
+        'No Credit Needed',
+        'Click Banner',
     ];
 
     private function descriptionIsValid( string $text ): bool
@@ -32,18 +31,28 @@ class Parser extends HtmlParser
         if ( isset( $matches[ 1 ] ) ) {
             $this->product_info = json_decode( $matches[ 1 ], true, 512, JSON_THROW_ON_ERROR );
             $this->product_info[ 'description' ] = '';
-            $this->filter( '#productDescription p' )->each( function ( ParserCrawler $c ) {
-                $text = $c->text();
-                if ( $text && $this->descriptionIsValid( $text ) ) {
-                    if ( str_contains( $text, ':' ) ) {
-                        [ $key, $value ] = explode( ':', $text, 2 );
-                        $this->product_info[ 'attributes' ][ trim( $key ) ] = trim( StringHelper::normalizeSpaceInString( $value ) );
-                    }
-                    else {
-                        $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
+
+            $description = preg_replace( [ '/<\w+.*?>/', '/<\/\w+>/' ], "\n", $this->getHtml( '#productDescription' ) );
+            $parts_of_description = explode( "\n", StringHelper::normalizeSpaceInString( $description ) );
+
+            if ( $parts_of_description ) {
+                foreach ( $parts_of_description as $text ) {
+                    if ( $text && $this->descriptionIsValid( $text ) ) {
+                        if ( str_contains( $text, ':' ) ) {
+                            [ $key, $value ] = explode( ':', $text, 2 );
+                            if ( empty( $value ) ) {
+                                $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
+                            }
+                            else {
+                                $this->product_info[ 'attributes' ][ trim( $key ) ] = trim( StringHelper::normalizeSpaceInString( $value ) );
+                            }
+                        }
+                        else {
+                            $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
+                        }
                     }
                 }
-            } );
+            }
         }
     }
 
