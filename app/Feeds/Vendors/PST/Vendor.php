@@ -4,14 +4,13 @@ namespace App\Feeds\Vendors\PST;
 
 use App\Feeds\Feed\FeedItem;
 use App\Feeds\Processor\HttpProcessor;
-use App\Feeds\Utils\Data;
 
 class Vendor extends HttpProcessor
 {
-    protected array $first = ['https://www.etsy.com/'];
+    protected array $first = ['https://www.etsy.com/shop/premiumsoftees/'];
 
-    public const CATEGORY_LINK_CSS_SELECTORS = [ '#desktop-category-nav li a', '[data-appears-component-name="search_pagination"] a' ];
-    public const PRODUCT_LINK_CSS_SELECTORS = [ '[data-search-results] .listing-link' ];
+    public const CATEGORY_LINK_CSS_SELECTORS = ['[data-item-pagination] a' ];
+    public const PRODUCT_LINK_CSS_SELECTORS = [ '[data-listings-container] .listing-link' ];
     protected array $headers = [
         'Connection' => 'keep-alive',
         'Accept' => '*/*',
