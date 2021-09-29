@@ -2,6 +2,7 @@
 
 namespace App\Feeds\Vendors\PBS;
 
+use App\Feeds\Feed\FeedItem;
 use App\Feeds\Parser\HtmlParser;
 use App\Helpers\StringHelper;
 
@@ -14,7 +15,7 @@ class Parser extends HtmlParser
         'Click Banner',
     ];
     public const REQUEST_PAYLOAD = '1cc57b09497262e8bab57ecc8dd9af46-0!722a387c~attempt1*7|1|7|https://app.ecwid.com/|BF7357332C74F21A3FF282EDEECCAE15|_|getOriginalProduct|4d|I|Z|1|2|3|4|3|5|6|7|0|%s|0|';
-    public const SHIPPING_WEIGHT_KEY = 'Overall Gross Weight:';
+    public const SHIPPING_WEIGHT_KEY = 'Overall Gross Weight';
 
     private function descriptionIsValid( string $text ): bool
     {
@@ -29,13 +30,6 @@ class Parser extends HtmlParser
 
     public function beforeParse(): void
     {
-        preg_match( '/p(\d+)/', $this->getUri(), $payload_match );
-        if ( isset( $payload_match[ 1 ] ) ) {
-            $this->getVendor()->getDownloader()->setHeader( 'Content-Type', 'text/x-gwt-rpc; charset=UTF-8' );
-            $test = $this->getVendor()->getDownloader()->post( 'https://app.ecwid.com/rpc?ownerid=47528127&customerlang=en&version=2021-37865-g11365a50609', [
-                sprintf( self::REQUEST_PAYLOAD, $payload_match[ 1 ] ),
-            ], 'request_payload' );
-        }
         preg_match( '/<script type="application\/ld\+json">\s*({.*?})\s*<\/script>/s', $this->node->html(), $matches );
         if ( isset( $matches[ 1 ] ) ) {
             $this->product_info = json_decode( $matches[ 1 ], true, 512, JSON_THROW_ON_ERROR );
@@ -47,10 +41,6 @@ class Parser extends HtmlParser
             if ( $parts_of_description ) {
                 foreach ( $parts_of_description as $key_desc => $text ) {
                     if ( $text && $this->descriptionIsValid( $text ) ) {
-                        if ( isset( $parts_of_description[ $key_desc - 1 ] ) && $parts_of_description[ $key_desc - 1 ] === self::SHIPPING_WEIGHT_KEY ) {
-                            continue;
-                        }
-
                         if ( str_contains( $text, ':' ) ) {
                             [ $key, $value ] = explode( ':', $text, 2 );
 
@@ -63,7 +53,7 @@ class Parser extends HtmlParser
                                 $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
                             }
                             else {
-                                if ( false !== stripos( $key, self::SHIPPING_WEIGHT_KEY  ) ) {
+                                if ( false !== stripos( $key, self::SHIPPING_WEIGHT_KEY ) ) {
                                     $this->product_info[ 'shipping_weight' ] = StringHelper::getFloat( $value );
                                     continue;
                                 }
@@ -72,10 +62,32 @@ class Parser extends HtmlParser
                             }
                         }
                         else {
+                            if ( isset( $parts_of_description[ $key_desc - 1 ] ) && $parts_of_description[ $key_desc - 1 ] === self::SHIPPING_WEIGHT_KEY . ':' ) {
+                                continue;
+                            }
+
                             $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
                         }
                     }
                 }
+            }
+        }
+    }
+
+    public function afterParse( FeedItem $fi ): void
+    {
+        preg_match( '/p(\d+)/', $this->getUri(), $payload_match );
+        if ( isset( $payload_match[ 1 ] ) ) {
+            $this->getVendor()->getDownloader()->setHeader( 'Content-Type', 'text/x-gwt-rpc; charset=UTF-8' );
+            $data = $this->getVendor()->getDownloader()->post( 'https://app.ecwid.com/rpc?ownerid=47528127&customerlang=en&version=2021-37865-g11365a50609', [
+                sprintf( self::REQUEST_PAYLOAD, $payload_match[ 1 ] ),
+            ], 'raw_data' )->getData();
+
+            if ( false !== stripos( $data, 'Not Shippable' ) || false !== stripos( $data, 'No Shipping' ) ) {
+                $fi->setCostToUs( 0 );
+                $fi->setRAvail( 0 );
+                $fi->setMpn( '' );
+                $fi->setImages( [] );
             }
         }
     }
@@ -92,7 +104,7 @@ class Parser extends HtmlParser
 
     public function getAvail(): ?int
     {
-        return isset( $this->product_info[ 'availability' ] ) && $this->product_info[ 'availability' ] === 'http://schema.org/InStock' ? self::DEFAULT_AVAIL_NUMBER : 0;
+        return isset( $this->product_info['offers'][ 'availability' ] ) && $this->product_info['offers'][ 'availability' ] === 'http://schema.org/InStock' ? self::DEFAULT_AVAIL_NUMBER : 0;
     }
 
     public function getDescription(): string
