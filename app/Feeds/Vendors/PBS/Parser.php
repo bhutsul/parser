@@ -29,7 +29,6 @@ class Parser extends HtmlParser
     public const REQUEST_PAYLOAD = '1cc57b09497262e8bab57ecc8dd9af46-0!722a387c~attempt1*7|1|7|https://app.ecwid.com/|BF7357332C74F21A3FF282EDEECCAE15|_|getOriginalProduct|4d|I|Z|1|2|3|4|3|5|6|7|0|%s|0|';
     public const SHIPPING_WEIGHT_KEY = 'Overall Gross Weight';
     public const WEIGHT_KEY = 'Overall Net Weight';
-    public const ARRAY_OF_WEIGHT_ELEMENTS = [ self::SHIPPING_WEIGHT_KEY . ':', self::WEIGHT_KEY . ':' ];
 
     private function descriptionIsValid( string $text ): bool
     {
@@ -58,7 +57,9 @@ class Parser extends HtmlParser
                         $this->product_info[ 'description' ] = "<p>" . implode( '</p><p>', $parts_of_description ) . "</p>";
                     }
                     else {
-                        foreach ( $parts_of_description as $key_desc => $text ) {
+                        $parts_of_description_length = count( $parts_of_description );
+                        for ( $key_desc = 0; $key_desc < $parts_of_description_length; $key_desc++ ) {
+                            $text = $parts_of_description[ $key_desc ];
                             if ( $text && $this->descriptionIsValid( $text ) ) {
                                 if ( str_contains( $text, ':' ) ) {
                                     [ $key, $value ] = explode( ':', $text, 2 );
@@ -67,11 +68,19 @@ class Parser extends HtmlParser
                                         if ( isset( $parts_of_description[ $key_desc + 1 ] ) ) {
                                             if ( false !== stripos( $key, self::SHIPPING_WEIGHT_KEY ) ) {
                                                 $this->product_info[ 'shipping_weight' ] = StringHelper::getFloat( $parts_of_description[ $key_desc + 1 ] );
+                                                $key_desc++;
                                                 continue;
                                             }
 
                                             if ( false !== stripos( $key, self::WEIGHT_KEY ) ) {
                                                 $this->product_info[ 'weight' ] = StringHelper::getFloat( $parts_of_description[ $key_desc + 1 ] );
+                                                $key_desc++;
+                                                continue;
+                                            }
+
+                                            if ( $key === 'Overall Dimension' ) {
+                                                $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $parts_of_description[ $key_desc + 1 ], 'x', 0, 2, 1 );
+                                                $key_desc++;
                                                 continue;
                                             }
                                         }
@@ -99,6 +108,7 @@ class Parser extends HtmlParser
                                                 $this->product_info[ 'weight' ] = StringHelper::getFloat( $value );
                                                 break;
                                             case 'Dimensions':
+                                            case 'Overall Dimension':
                                                 $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, 'x', 0, 2, 1 );
                                                 break;
                                             case self::SHIPPING_WEIGHT_KEY:
@@ -111,10 +121,6 @@ class Parser extends HtmlParser
                                     }
                                 }
                                 else {
-                                    if ( isset( $parts_of_description[ $key_desc - 1 ] ) && in_array( $parts_of_description[ $key_desc - 1 ], self::ARRAY_OF_WEIGHT_ELEMENTS ) ) {
-                                        continue;
-                                    }
-
                                     $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
                                 }
                             }
