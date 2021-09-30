@@ -54,64 +54,69 @@ class Parser extends HtmlParser
                 $parts_of_description = explode( "\n", StringHelper::normalizeSpaceInString( $description ) );
 
                 if ( $parts_of_description ) {
-                    foreach ( $parts_of_description as $key_desc => $text ) {
-                        if ( $text && $this->descriptionIsValid( $text ) ) {
-                            if ( str_contains( $text, ':' ) ) {
-                                [ $key, $value ] = explode( ':', $text, 2 );
+                    if ( in_array( 'Right Arm Facing Bump Chaise:', $parts_of_description ) ) {
+                        $this->product_info[ 'description' ] = "<p>" . implode( '</p><p>', $parts_of_description ) . "</p>";
+                    }
+                    else {
+                        foreach ( $parts_of_description as $key_desc => $text ) {
+                            if ( $text && $this->descriptionIsValid( $text ) ) {
+                                if ( str_contains( $text, ':' ) ) {
+                                    [ $key, $value ] = explode( ':', $text, 2 );
 
-                                if ( empty( trim( $value ) ) ) {
-                                    if ( isset( $parts_of_description[ $key_desc + 1 ] ) ) {
-                                        if ( false !== stripos( $key, self::SHIPPING_WEIGHT_KEY ) ) {
-                                            $this->product_info[ 'shipping_weight' ] = StringHelper::getFloat( $parts_of_description[ $key_desc + 1 ] );
-                                            continue;
+                                    if ( empty( trim( $value ) ) ) {
+                                        if ( isset( $parts_of_description[ $key_desc + 1 ] ) ) {
+                                            if ( false !== stripos( $key, self::SHIPPING_WEIGHT_KEY ) ) {
+                                                $this->product_info[ 'shipping_weight' ] = StringHelper::getFloat( $parts_of_description[ $key_desc + 1 ] );
+                                                continue;
+                                            }
+
+                                            if ( false !== stripos( $key, self::WEIGHT_KEY ) ) {
+                                                $this->product_info[ 'weight' ] = StringHelper::getFloat( $parts_of_description[ $key_desc + 1 ] );
+                                                continue;
+                                            }
                                         }
 
-                                        if ( false !== stripos( $key, self::WEIGHT_KEY ) ) {
-                                            $this->product_info[ 'weight' ] = StringHelper::getFloat( $parts_of_description[ $key_desc + 1 ] );
-                                            continue;
+                                        foreach ( self::NOT_VALID_ATTRIBUTE_VALUES as $str ) {
+                                            if ( false !== stripos( $key, $str ) ) {
+                                                continue 2;
+                                            }
+                                        }
+
+                                        $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
+                                    }
+                                    else {
+                                        switch ( $key ) {
+                                            case 'Height':
+                                                $this->product_info[ 'dims' ][ 'y' ] = StringHelper::getFloat( $value );
+                                                break;
+                                            case 'Width':
+                                                $this->product_info[ 'dims' ][ 'x' ] = StringHelper::getFloat( $value );
+                                                break;
+                                            case 'Depth':
+                                                $this->product_info[ 'dims' ][ 'z' ] = StringHelper::getFloat( $value );
+                                                break;
+                                            case 'Weight':
+                                                $this->product_info[ 'weight' ] = StringHelper::getFloat( $value );
+                                                break;
+                                            case 'Dimensions':
+                                                $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, 'x', 0, 2, 1 );
+                                                break;
+                                            case self::SHIPPING_WEIGHT_KEY:
+                                                $this->product_info[ 'shipping_weight' ] = StringHelper::getFloat( $value );
+                                                break;
+                                            default:
+                                                $this->product_info[ 'attributes' ][ trim( $key ) ] = trim( StringHelper::normalizeSpaceInString( $value ) );
+                                                break;
                                         }
                                     }
-
-                                    foreach ( self::NOT_VALID_ATTRIBUTE_VALUES as $str ) {
-                                        if ( false !== stripos( $key, $str ) ) {
-                                            continue 2;
-                                        }
+                                }
+                                else {
+                                    if ( isset( $parts_of_description[ $key_desc - 1 ] ) && in_array( $parts_of_description[ $key_desc - 1 ], self::ARRAY_OF_WEIGHT_ELEMENTS ) ) {
+                                        continue;
                                     }
 
                                     $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
                                 }
-                                else {
-                                    switch ( $key ) {
-                                        case 'Height':
-                                            $this->product_info[ 'dims' ][ 'y' ] = StringHelper::getFloat( $value );
-                                            break;
-                                        case 'Width':
-                                            $this->product_info[ 'dims' ][ 'x' ] = StringHelper::getFloat( $value );
-                                            break;
-                                        case 'Depth':
-                                            $this->product_info[ 'dims' ][ 'z' ] = StringHelper::getFloat( $value );
-                                            break;
-                                        case 'Weight':
-                                            $this->product_info[ 'weight' ] = StringHelper::getFloat( $value );
-                                            break;
-                                        case 'Dimensions':
-                                            $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, 'x', 0, 2, 1 );
-                                            break;
-                                        case self::SHIPPING_WEIGHT_KEY:
-                                            $this->product_info[ 'shipping_weight' ] = StringHelper::getFloat( $value );
-                                            break;
-                                        default:
-                                            $this->product_info[ 'attributes' ][ trim( $key ) ] = trim( StringHelper::normalizeSpaceInString( $value ) );
-                                            break;
-                                    }
-                                }
-                            }
-                            else {
-                                if ( isset( $parts_of_description[ $key_desc - 1 ] ) && in_array( $parts_of_description[ $key_desc - 1 ], self::ARRAY_OF_WEIGHT_ELEMENTS ) ) {
-                                    continue;
-                                }
-
-                                $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
                             }
                         }
                     }
