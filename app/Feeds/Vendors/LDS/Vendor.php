@@ -8,7 +8,6 @@ use App\Feeds\Processor\SitemapHttpProcessor;
 class Vendor extends SitemapHttpProcessor
 {
     protected array $first = ['https://leodaniels.com/sitemap.xml'];
-    protected ?int $max_products = 5000;
 
     protected function isValidFeedItem(FeedItem $fi ): bool
     {
