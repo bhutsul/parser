@@ -12,5 +12,5 @@
 */
 
 Route::get('/', function () {
-    return \Illuminate\Support\Facades\Artisan::call('feed PBS');
+    return \Illuminate\Support\Facades\Artisan::call('feed LDS');
 });
