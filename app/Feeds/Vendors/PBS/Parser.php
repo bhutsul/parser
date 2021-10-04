@@ -10,12 +10,13 @@ use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
 {
-    private array $product_info;
-
     public const NOT_VALID_PARTS_OF_DESC = [
         'No Credit Needed',
         'Click Banner',
+        'Product Features:',
+        'Home Card',
     ];
+
     public const NOT_VALID_ATTRIBUTE_VALUES = [
         'Dimensions',
         'End Table',
@@ -29,6 +30,8 @@ class Parser extends HtmlParser
     public const REQUEST_PAYLOAD = '1cc57b09497262e8bab57ecc8dd9af46-0!722a387c~attempt1*7|1|7|https://app.ecwid.com/|BF7357332C74F21A3FF282EDEECCAE15|_|getOriginalProduct|4d|I|Z|1|2|3|4|3|5|6|7|0|%s|0|';
     public const SHIPPING_WEIGHT_KEY = 'Overall Gross Weight';
     public const WEIGHT_KEY = 'Overall Net Weight';
+
+    private array $product_info;
 
     private function descriptionIsValid( string $text ): bool
     {
@@ -121,6 +124,13 @@ class Parser extends HtmlParser
                                     }
                                 }
                                 else {
+                                    $regex_dims = '/Dimensions\s*(\d*[.\d+]*)\s*x\s*(\d*[.\d+]*)\s*x\s*(\d*[.\d+]*)/';
+
+                                    if ( preg_match( $regex_dims, $text ) ) {
+                                        $this->product_info[ 'dims' ] = FeedHelper::getDimsRegexp( $text, [ $regex_dims ], 1, 3, 2 );
+                                        continue;
+                                    }
+
                                     $this->product_info[ 'description' ] .= '<p>' . $text . '</p>';
                                 }
                             }
@@ -173,7 +183,7 @@ class Parser extends HtmlParser
 
     public function getProduct(): string
     {
-        return $this->product_info[ 'name' ] ?? '';
+        return $this->getText( '[itemprop="name"]' );
     }
 
     public function getMpn(): string
