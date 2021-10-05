@@ -138,7 +138,7 @@ class Parser extends HtmlParser
     private function parseDescriptionTable(): void
     {
         $this->filter( '.product-table-description ul' )->each( function ( ParserCrawler $ul ) {
-            if ( preg_match( '~[0-9]+~', $ul->getText( '.name-of-column' ) ) ) {
+            if ( preg_match( '/\d+/', $ul->getText( '.name-of-column' ) ) ) {
                 $this->product_info[ 'description' ] .= '<ul>' . $ul->html() . '</ul>';
             }
             else {

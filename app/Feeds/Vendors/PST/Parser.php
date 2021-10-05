@@ -51,6 +51,7 @@ class Parser extends HtmlParser
         'contact us',
         '£',
         'wholesale',
+        'S H I P P I N G & P R O D U C T I O N T I M E',
     ];
     public const DIGITAL_ATTR = 'digital download';
     public const QUANTITY_SELECT_ID = 'inventory-variation-select-quantity';
