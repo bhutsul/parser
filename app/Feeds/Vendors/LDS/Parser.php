@@ -36,12 +36,12 @@ class Parser extends HtmlParser
 
     private function getCombinations(): array
     {
-        return $this->parseJsonFromJS( '/initConfigurableOptions\((.*?)\)/' );
+        return $this->parseJsonFromJS( '/initConfigurableOptions\((.*?)\);/' );
     }
 
     private function getConfigOfChild(): array
     {
-        return $this->parseJsonFromJS( '/Product.Config\((.*?)\)/' );
+        return $this->parseJsonFromJS( '/Product.Config\((.*?)\);/' );
     }
 
     private function getNameOfChild( array $combination, array $config ): string
@@ -98,11 +98,15 @@ class Parser extends HtmlParser
         preg_match( '/product-page__price\'\).first\(\).innerHTML = \"(.*?)\";/', $json, $price );
         preg_match( '/galleryView.update\(\"(.*?)\"\);/', $json, $images );
 
-        if ( !isset( $description[ 1 ], $price[ 1 ], $images[ 1 ] ) ) {
+        if ( !isset( $description[ 1 ], $price[ 1 ] ) ) {
             return [];
         }
 
-        $crawler = new ParserCrawler( preg_replace( '/\\\"/', '"', $description[ 1 ] . $price[ 1 ] . $images[ 1 ] ) );
+        $html = $description[ 1 ] . $price[ 1 ];
+        if ( !empty( $images[ 1 ] ) ) {
+            $html .= $images[ 1 ];
+        }
+        $crawler = new ParserCrawler( preg_replace( '/\\\"/', '"', $html ) );
 
         $parameters = [];
 
@@ -117,7 +121,7 @@ class Parser extends HtmlParser
         } );
 
         $parameters[ 'price' ] = StringHelper::getFloat( $crawler->getText( '.regular-price' ) );
-        $parameters[ 'images' ] = array_map( static fn( $image ) => preg_replace( '/\\\\/', '', $image ), $this->getParsedImages($crawler) );
+        $parameters[ 'images' ] = array_values( array_filter( array_map( static fn( $image ) => preg_replace( '/\\\\/', '', $image ), $this->getParsedImages( $crawler ) ) ) );
 
         return $parameters;
     }
@@ -158,15 +162,15 @@ class Parser extends HtmlParser
         }
     }
 
-    private function getParsedImages(ParserCrawler|HtmlParser $crawler): array
+    private function getParsedImages( ParserCrawler|HtmlParser $crawler ): array
     {
         $images = $crawler->getAttrs( '[data-magic-slide-id="zoom"]', 'href' );
 
-        if (!$images) {
-            $images = [$crawler->getAttr('[data-magic-slide="zoom"] a', 'href')];
+        if ( !$images ) {
+            $images = [ $crawler->getAttr( '[data-magic-slide="zoom"] a', 'href' ) ];
         }
 
-        return !empty($images) ? $images : [];
+        return !empty( $images ) ? $images : [];
     }
 
     public function beforeParse(): void
@@ -177,7 +181,7 @@ class Parser extends HtmlParser
             'id' => $id,
             'name' => $this->getText( '.product-page-mob__title' ),
             'price' => StringHelper::getFloat( $this->getText( '#product-price-' . $id ) ),
-            'images' => $this->getParsedImages($this),
+            'images' => $this->getParsedImages( $this ),
             'brand' => $this->getText( '.product-page-info .product-name-brand' ),
             'sku' => $this->getText( '.product-page__sku' ),
             'categories' => array_values( array_slice( $this->getContent( '.breadcrumbs a' ), 1 ) ),
@@ -228,7 +232,7 @@ class Parser extends HtmlParser
 
     public function getDescription(): string
     {
-        return !empty($this->product_info[ 'description' ]) ? $this->product_info[ 'description' ] : $this->getProduct();
+        return !empty( $this->product_info[ 'description' ] ) ? $this->product_info[ 'description' ] : $this->getProduct();
     }
 
     public function getAttributes(): ?array
@@ -238,7 +242,7 @@ class Parser extends HtmlParser
 
     public function getAvail(): ?int
     {
-        return $this->exists('.out-of-stock span') ? 0 : self::DEFAULT_AVAIL_NUMBER;
+        return $this->exists( '.out-of-stock span' ) ? 0 : self::DEFAULT_AVAIL_NUMBER;
     }
 
     public function getCategories(): array
@@ -256,7 +260,7 @@ class Parser extends HtmlParser
             $fi->setProduct( $item[ 'name' ] );
             $fi->setCostToUs( $item[ 'price' ] );
             $fi->setRAvail( $this->getAvail() );
-            $fi->setImages( $item[ 'images' ] );
+            $fi->setImages( !empty( $item[ 'images' ] ) ? $item[ 'images' ] : $this->getImages() );
 
             $fi->setMpn( $item[ 'sku' ] );
 

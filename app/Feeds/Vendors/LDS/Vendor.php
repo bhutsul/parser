@@ -8,6 +8,7 @@ use App\Feeds\Processor\SitemapHttpProcessor;
 class Vendor extends SitemapHttpProcessor
 {
     protected array $first = ['https://leodaniels.com/sitemap.xml'];
+    public array $custom_products = ['https://leodaniels.com/1-00-ctw-round-diamond-prong-set-engagement-ring-in-14kt-white-gold.html'];
 
     protected function isValidFeedItem(FeedItem $fi ): bool
     {
