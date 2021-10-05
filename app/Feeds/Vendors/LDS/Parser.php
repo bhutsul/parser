@@ -23,9 +23,9 @@ class Parser extends HtmlParser
 
     private array $product_info;
 
-    private function parseJsonFromJS( string $pattern ): array
+    private function getConfigOfChild(): array
     {
-        preg_match( $pattern, $this->node->html(), $matches );
+        preg_match( '/Product.Config\((.*?)\);/', $this->node->html(), $matches );
 
         try {
             return json_decode( $matches[ 1 ], true, 512, JSON_THROW_ON_ERROR );
@@ -34,28 +34,41 @@ class Parser extends HtmlParser
         }
     }
 
-    private function getCombinations(): array
+    private function combinations( array $arrays, int $i = 0 )
     {
-        return $this->parseJsonFromJS( '/initConfigurableOptions\((.*?)\);/' );
+        if ( !isset( $arrays[ $i ] ) ) {
+            return [];
+        }
+
+        if ( $i === count( $arrays ) - 1 ) {
+            return $arrays[ $i ];
+        }
+
+        // get combinations from subsequent arrays
+        $tmp = $this->combinations( $arrays, $i + 1 );
+
+        $result = [];
+
+        // concat each array from tmp with each element from $arrays[$i]
+        foreach ( $arrays[ $i ] as $v ) {
+            foreach ( $tmp as $t ) {
+                $result[] = is_array( $t ) ? array_merge( [ $v ], $t ) : [ $v, $t ];
+            }
+        }
+
+        return $result;
     }
 
-    private function getConfigOfChild(): array
-    {
-        return $this->parseJsonFromJS( '/Product.Config\((.*?)\);/' );
-    }
 
-    private function getNameOfChild( array $combination, array $config ): string
+    private function getNameOfChild( array $combination, array $options ): string
     {
         $name = '';
 
-        foreach ( $combination as $option => $value ) {
-            $name .= $config[ 'attributes' ][ $option ][ 'label' ];
+        foreach ( $combination as $option_id ) {
+            $name .= $options[ $option_id ][ 'name' ];
             $name .= ': ';
-
-            $key_of_option_value = array_search( $value, array_column( $config[ 'attributes' ][ $option ][ 'options' ], 'id' ), true );
-
-            $name .= $config[ 'attributes' ][ $option ][ 'options' ][ $key_of_option_value ][ 'label' ];
-            $name .= str_ends_with( $config[ 'attributes' ][ $option ][ 'options' ][ $key_of_option_value ][ 'label' ], '.' ) ? ' ' : '. ';
+            $name .= $options[ $option_id ][ 'value' ];
+            $name .= str_ends_with( $options[ $option_id ][ 'value' ], '.' ) ? ' ' : '. ';
         }
 
         return $name;
@@ -63,25 +76,46 @@ class Parser extends HtmlParser
 
     private function getLinksAndNamesOfChild(): array
     {
-        $combinations = $this->getCombinations();
         $config = $this->getConfigOfChild();
 
         $links = [];
         $names = [];
+        $option_groups = [];
+        $option_values_info = [];
+
+        foreach ( $config[ 'attributes' ] as $group ) {
+            $option_values = [];
+            foreach ( $group[ 'options' ] as $option ) {
+                $option_values[] = $option[ 'id' ];
+                $option_values_info[ $option[ 'id' ] ] = [
+                    'name' => $group[ 'label' ],
+                    'value' => $option[ 'label' ],
+                    'id' => $option[ 'id' ],
+                    'group_id' => $group[ 'id' ],
+                ];
+            }
+            $option_groups[] = $option_values;
+        }
+
+        $combinations = $this->combinations( $option_groups );
 
         foreach ( $combinations as $combination ) {
-            unset( $combination[ 'backorders' ] );
+            $selection = [];
+            $option_id = (int)$combination[ array_key_first( $combination ) ];
+            $attribute_id = $option_values_info[ $option_id ][ 'group_id' ];
 
-            $first_key = array_key_first( $combination );
+            foreach ( $combination as $value ) {
+                $selection[ $option_values_info[ $value ][ 'group_id' ] ] = $value;
+            }
 
             $link = new Link( self::VARIATION_URI, 'GET', [
                 'product_id' => $this->product_info[ 'id' ],
-                'attribute_id' => $first_key,
-                'option_id' => (int)$combination[ $first_key ],
-                'selection' => json_encode( $combination, JSON_THROW_ON_ERROR ),
+                'attribute_id' => $attribute_id,
+                'option_id' => $option_id,
+                'selection' => json_encode( $selection, JSON_THROW_ON_ERROR ),
             ] );
 
-            $names[ $link->getUrl() ] = $this->getNameOfChild( $combination, $config );
+            $names[ $link->getUrl() ] = $this->getNameOfChild( $combination, $option_values_info );
 
             $links[] = $link;
         }
