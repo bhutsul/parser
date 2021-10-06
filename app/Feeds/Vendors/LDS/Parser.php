@@ -60,15 +60,23 @@ class Parser extends HtmlParser
     }
 
 
-    private function getNameOfChild( array $combination, array $options ): string
+    private function getNameOfChild( array|string $combination, array $options ): string
     {
         $name = '';
 
-        foreach ( $combination as $option_id ) {
-            $name .= $options[ $option_id ][ 'name' ];
+        if ( is_array( $combination ) ) {
+            foreach ( $combination as $option_id ) {
+                $name .= $options[ $option_id ][ 'name' ];
+                $name .= ': ';
+                $name .= $options[ $option_id ][ 'value' ];
+                $name .= str_ends_with( $options[ $option_id ][ 'value' ], '.' ) ? ' ' : '. ';
+            }
+        }
+        else {
+            $name .= $options[ $combination ][ 'name' ];
             $name .= ': ';
-            $name .= $options[ $option_id ][ 'value' ];
-            $name .= str_ends_with( $options[ $option_id ][ 'value' ], '.' ) ? ' ' : '. ';
+            $name .= $options[ $combination ][ 'value' ];
+            $name .= str_ends_with( $options[ $combination ][ 'value' ], '.' ) ? ' ' : '. ';
         }
 
         return $name;
@@ -101,12 +109,18 @@ class Parser extends HtmlParser
 
         foreach ( $combinations as $combination ) {
             $selection = [];
-            $option_id = (int)$combination[ array_key_first( $combination ) ];
-            $attribute_id = $option_values_info[ $option_id ][ 'group_id' ];
 
-            foreach ( $combination as $value ) {
-                $selection[ $option_values_info[ $value ][ 'group_id' ] ] = $value;
+            if ( is_array( $combination ) ) {
+                $option_id = (int)$combination[ array_key_first( $combination ) ];
+                foreach ( $combination as $value ) {
+                    $selection[ $option_values_info[ $value ][ 'group_id' ] ] = $value;
+                }
             }
+            else {
+                $option_id = $combination;
+                $selection[ $option_values_info[ $option_id ][ 'group_id' ] ] = $option_id;
+            }
+            $attribute_id = $option_values_info[ $option_id ][ 'group_id' ];
 
             $link = new Link( self::VARIATION_URI, 'GET', [
                 'product_id' => $this->product_info[ 'id' ],
