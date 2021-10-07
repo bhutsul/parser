@@ -169,7 +169,7 @@ class Parser extends HtmlParser
         } );
 
         $parameters[ 'price' ] = StringHelper::getFloat( $crawler->getText( '.regular-price' ) );
-        $parameters[ 'images' ] = array_values( array_filter( array_map( static fn( $image ) => preg_replace( '/\\\\/', '', $image ), $this->getParsedImages( $crawler ) ) ) );
+        $parameters[ 'images' ] = array_map( static fn( $image ) => preg_replace( '/\\\\/', '', $image ), $this->getParsedImages( $crawler ) );
 
         return $parameters;
     }
@@ -218,7 +218,7 @@ class Parser extends HtmlParser
             $images = [ $crawler->getAttr( '[data-magic-slide="zoom"] a', 'href' ) ];
         }
 
-        return !empty( $images ) ? $images : [];
+        return !empty( $images ) ? array_values( array_filter( $images ) ) : [];
     }
 
     public function beforeParse(): void

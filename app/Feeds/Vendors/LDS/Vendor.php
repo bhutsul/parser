@@ -8,6 +8,7 @@ use App\Feeds\Processor\SitemapHttpProcessor;
 class Vendor extends SitemapHttpProcessor
 {
     protected array $first = ['https://leodaniels.com/sitemap.xml'];
+    public array $custom_products = ['https://leodaniels.com//t0624271705700-men-s-t-navigator-black-dial-black-rubber-band-automatic-watch.html'];
 
     protected function isValidFeedItem(FeedItem $fi ): bool
     {
