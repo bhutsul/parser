@@ -14,6 +14,11 @@ class Parser extends HtmlParser
         '/<div\b[^>]+\bclass=[\'\"]prod-faq[\'\"][^>]*>(.*?)<\/div>/s',
     ];
 
+    public const NOT_VALID_ATTRIBUTES = [
+        'Model No',
+        'Net weight',
+    ];
+
     private function formattedImages( array $images ): array
     {
         return array_values(
@@ -68,6 +73,28 @@ class Parser extends HtmlParser
         } );
     }
 
+    private function isAttributeValid( string $key ): bool
+    {
+        if ( empty( $key ) ) {
+            return false;
+        }
+
+        foreach ( self::NOT_VALID_ATTRIBUTES as $str ) {
+            if ( false !== stripos( $key, $str ) ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function pushWeight( string $key, string $value ): void
+    {
+        if ( false !== stripos( $key, 'weight' ) && false !== stripos( $key, 'lbs' ) ) {
+            $this->product_info[ 'weight' ] = StringHelper::getFloat( $value );
+        }
+    }
+
     private function pushDimsAndAttributes(): void
     {
         if ( $this->exists( '.attributes-wrapper table' ) ) {
@@ -75,12 +102,9 @@ class Parser extends HtmlParser
                 $key = $tr->getText( 'th' );
                 $value = $tr->getText( 'td' );
 
-                $next_element = $tr->nextAll()->first();
-                if ( $next_element->exists( 'th' ) && empty( $next_element->getText( 'th' ) ) ) {
-                    $value .= ' ' . $next_element->getText( 'td' );
-                }
+                $this->pushWeight( $key, $value );
 
-                if ( !empty( $key ) ) {
+                if ( $this->isAttributeValid( $key ) ) {
                     $this->product_info[ 'attributes' ][ $key ] = $value;
                 }
             } );
@@ -156,6 +180,11 @@ class Parser extends HtmlParser
     public function getAttributes(): ?array
     {
         return !empty( $this->product_info[ 'attributes' ] ) ? $this->product_info[ 'attributes' ] : null;
+    }
+
+    public function getWeight(): ?float
+    {
+        return $this->product_info[ 'weight' ] ?? null;
     }
 
     public function getAvail(): ?int
