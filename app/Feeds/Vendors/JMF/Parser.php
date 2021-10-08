@@ -4,6 +4,7 @@ namespace App\Feeds\Vendors\JMF;
 
 use App\Feeds\Parser\HtmlParser;
 use App\Feeds\Utils\ParserCrawler;
+use App\Helpers\FeedHelper;
 use App\Helpers\StringHelper;
 
 class Parser extends HtmlParser
@@ -17,6 +18,7 @@ class Parser extends HtmlParser
     public const NOT_VALID_ATTRIBUTES = [
         'Model No',
         'Net weight',
+        'Net Dimensions',
     ];
 
     private function formattedImages( array $images ): array
@@ -104,6 +106,10 @@ class Parser extends HtmlParser
 
                 $this->pushWeight( $key, $value );
 
+                if ( false !== stripos( $key, 'Net Dimensions (W x D x H)' ) ) {
+                    $this->product_info['dims'] = FeedHelper::getDimsInString($value, 'x', 0, 2,1);
+                }
+
                 if ( $this->isAttributeValid( $key ) ) {
                     $this->product_info[ 'attributes' ][ $key ] = $value;
                 }
@@ -120,10 +126,11 @@ class Parser extends HtmlParser
 
     public function beforeParse(): void
     {
+        $sku = $this->getAttr( '[data-bv-show="rating_summary"]', 'data-bv-product-id' );
         $this->product_info = [
-            'name' => $this->getText( '[itemprop="name"]' ),
+            'name' => preg_replace('/[\s+]?[-]?[\s+]?[#]?[\s+]?'. $sku . '/ui','',$this->getText( '[itemprop="name"]' )),
             'price' => StringHelper::getFloat( $this->getAttr( '[itemprop="price"]', 'content' ) ),
-            'sku' => $this->getAttr( '[data-bv-show="rating_summary"]', 'data-bv-product-id' ),
+            'sku' => $sku,
             'categories' => $this->getContent( '.items .category a' ),
             'description' => preg_replace( self::NOT_VALID_PARTS_OF_DESC_REGEXES, '', $this->getHtml( '#description .description' ) ),
         ];
@@ -180,6 +187,21 @@ class Parser extends HtmlParser
     public function getAttributes(): ?array
     {
         return !empty( $this->product_info[ 'attributes' ] ) ? $this->product_info[ 'attributes' ] : null;
+    }
+
+    public function getDimX(): ?float
+    {
+        return $this->product_info['dims']['x'] ?? null;
+    }
+
+    public function getDimY(): ?float
+    {
+        return $this->product_info['dims']['y'] ?? null;
+    }
+
+    public function getDimZ(): ?float
+    {
+        return $this->product_info['dims']['z'] ?? null;
     }
 
     public function getWeight(): ?float

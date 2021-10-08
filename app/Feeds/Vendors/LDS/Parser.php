@@ -194,9 +194,19 @@ class Parser extends HtmlParser
                 $this->product_info[ 'description' ] .= '<ul>' . $ul->html() . '</ul>';
             }
             else {
-                $shorts_and_attributes = FeedHelper::getShortsAndAttributesInList( $ul->html(), $this->product_info[ 'short_description' ], $this->product_info[ 'attributes' ] );
-                $this->product_info[ 'short_description' ] = $shorts_and_attributes[ 'short_description' ];
-                $this->product_info[ 'attributes' ] = $shorts_and_attributes[ 'attributes' ];
+                $ul->filter( 'li' )->each( function ( ParserCrawler $c ) {
+                    $text = $c->text();
+                    if ( str_contains( $text, ':' ) ) {
+                        [ $key, $value ] = explode( ':', $text, 2 );
+                        if ( false !== stripos( $key, 'upc' ) ) {
+                            $this->product_info['upc'] = $value;
+                        }
+                        $this->product_info['attributes'][ trim( $key ) ] = trim( StringHelper::normalizeSpaceInString( $value ) );
+                    }
+                    else {
+                        $this->product_info[ 'short_description' ][] = $text;
+                    }
+                } );
             }
         } );
     }
@@ -261,6 +271,11 @@ class Parser extends HtmlParser
     public function getMpn(): string
     {
         return $this->product_info[ 'sku' ] ?? '';
+    }
+
+    public function getUpc(): ?string
+    {
+        return $this->product_info[ 'upc' ] ?? null;
     }
 
     public function getBrand(): ?string
