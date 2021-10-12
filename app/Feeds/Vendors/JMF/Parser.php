@@ -165,7 +165,7 @@ class Parser extends HtmlParser
         $fi = clone $parent_fi;
 
         $fi->setProduct( $name );
-        $fi->setCostToUs( $this->getCostToUs() + $price );
+        $fi->setCostToUs( $price );
         $fi->setRAvail( $this->getAvail() );
         $fi->setImages( $images ?? $this->getImages() );
 
@@ -232,7 +232,6 @@ class Parser extends HtmlParser
                         $options[ $option[ 'id' ] ] = [
                             'name' => $attribute[ 'label' ],
                             'value' => $option[ 'label' ],
-                            'price' => 0,
                             'id' => $option[ 'id' ],
                         ];
 
@@ -244,6 +243,7 @@ class Parser extends HtmlParser
                                 ) {
                                     $options[ $option[ 'id' ] ][ 'sku' ] = $options_index[ 'sku' ];
                                     $options[ $option[ 'id' ] ][ 'images' ] = $this->product_info[ 'swatch' ][ 'images' ][ $key ];
+                                    $options[ $option[ 'id' ] ][ 'price' ] = $this->product_info[ 'swatch' ][ 'optionPrices' ][ $key ][ 'finalPrice' ][ 'amount' ];
 
                                     break;
                                 }
