@@ -208,15 +208,14 @@ class Parser extends HtmlParser
         $name .= ': ';
         $name .= $option[ 'value' ];
 
-        $mpn .= '-';
-        $mpn .= $option[ 'id' ];
+        $mpn .= $option[ 'sku' ];
 
         $price += $option[ 'price' ];
     }
 
     private function getDefaultNameMpnPrice(): array
     {
-        return [ '', $this->getMpn(), 0 ];
+        return [ '', '', 0 ];
     }
 
     private function getOptionsAndGroups(): array
@@ -243,6 +242,7 @@ class Parser extends HtmlParser
                                     isset( $options_index[ $attribute[ 'id' ] ], $this->product_info[ 'swatch' ][ 'images' ][ $key ] )
                                     && $options_index[ $attribute[ 'id' ] ] === $option[ 'id' ]
                                 ) {
+                                    $options[ $option[ 'id' ] ][ 'sku' ] = $options_index['sku'];
                                     $options[ $option[ 'id' ] ][ 'images' ] = $this->product_info[ 'swatch' ][ 'images' ][ $key ];
 
                                     break;
