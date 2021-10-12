@@ -242,7 +242,7 @@ class Parser extends HtmlParser
                                     isset( $options_index[ $attribute[ 'id' ] ], $this->product_info[ 'swatch' ][ 'images' ][ $key ] )
                                     && $options_index[ $attribute[ 'id' ] ] === $option[ 'id' ]
                                 ) {
-                                    $options[ $option[ 'id' ] ][ 'sku' ] = $options_index['sku'];
+                                    $options[ $option[ 'id' ] ][ 'sku' ] = $options_index[ 'sku' ];
                                     $options[ $option[ 'id' ] ][ 'images' ] = $this->product_info[ 'swatch' ][ 'images' ][ $key ];
 
                                     break;
