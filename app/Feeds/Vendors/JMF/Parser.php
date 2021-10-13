@@ -148,105 +148,12 @@ class Parser extends HtmlParser
         } );
     }
 
-    private function combinations( array $arrays, int $i = 0 )
-    {
-        if ( !isset( $arrays[ $i ] ) ) {
-            return [];
-        }
-
-        if ( $i === count( $arrays ) - 1 ) {
-            return $arrays[ $i ];
-        }
-
-        // get combinations from subsequent arrays
-        $tmp = $this->combinations( $arrays, $i + 1 );
-
-        $result = [];
-
-        // concat each array from tmp with each element from $arrays[$i]
-        foreach ( $arrays[ $i ] as $v ) {
-            foreach ( $tmp as $t ) {
-                $result[] = is_array( $t ) ? array_merge( [ $v ], $t ) : [ $v, $t ];
-            }
-        }
-
-        return $result;
-    }
-
-    private function childClone(
-        FeedItem $parent_fi,
-        array &$child,
-        string $name,
-        string $mpn,
-        int|float $price,
-        null|array $images
-    ): void
-    {
-        $fi = clone $parent_fi;
-
-        $fi->setProduct( $name );
-        $fi->setCostToUs( $price );
-        $fi->setRAvail( $this->getAvail() );
-        $fi->setImages( $images ?? $this->getImages() );
-
-        $fi->setDimX( $this->getDimX() );
-        $fi->setDimY( $this->getDimY() );
-        $fi->setDimZ( $this->getDimZ() );
-
-        $fi->setWeight( $this->getWeight() );
-
-        $fi->setMpn( $mpn );
-
-        $child[] = $fi;
-    }
-
-    private function getChildNameAndMpnAndPriceAndImagesInGroup( array $option_values, array $options ): array
-    {
-        $images = [];
-
-        [ $name, $mpn, $price ] = $this->getDefaultNameMpnPrice();
-
-        foreach ( $option_values as $option_value ) {
-            $this->prepareNameAndMpnAndPrice( $options[ $option_value ], $name, $mpn, $price );
-
-            if ( isset( $option[ 'images' ] ) ) {
-                $images = array_merge( $options[ $option_value ][ 'images' ], $images );
-            }
-        }
-
-        return [ $name, $mpn, $price, $images ? $this->formattedImages( $images ) : null ];
-    }
-
-    private function prepareNameAndMpnAndPrice(
-        array $option,
-        string &$name,
-        string &$mpn,
-        int|float|string &$price
-    ): void
-    {
-        $name .= $option[ 'name' ];
-        $name .= ': ';
-        $name .= $option[ 'value' ];
-
-        $mpn .= $option[ 'sku' ];
-
-        $price += $option[ 'price' ];
-    }
-
-    private function getDefaultNameMpnPrice(): array
-    {
-        return [ '', '', 0 ];
-    }
-
-    private function getOptionsAndGroups(): array
+    private function getSwatchOptions(): array
     {
         $options = [];
-        $option_groups = [];
 
         if ( isset( $this->product_info[ 'swatch' ] ) ) {
             foreach ( $this->product_info[ 'swatch' ][ 'attributes' ] as $attribute ) {
-                $option_values = [];
-
                 foreach ( $attribute[ 'options' ] as $option ) {
                     if ( $option[ 'products' ] ) {
                         $options[ $option[ 'id' ] ] = [
@@ -269,40 +176,12 @@ class Parser extends HtmlParser
                                 }
                             }
                         }
-                        $option_values[] = $option[ 'id' ];
                     }
-                }
-
-                if ( $option_values ) {
-                    $option_groups[] = $option_values;
                 }
             }
         }
 
-        $this->filter( '#product-options-wrapper select' )
-            ->each( function ( ParserCrawler $select ) use ( &$options, &$option_groups ) {
-                if ( false !== stripos( $select->attr( 'class' ), 'required' ) ) {
-                    $option_values = [];
-
-                    $select->filter( 'option' )
-                        ->each( function ( ParserCrawler $option ) use ( &$options, &$option_values, $select ) {
-                            if ( $option->attr( 'value' ) ) {
-                                $options[ $option->attr( 'value' ) ] = [
-                                    'name' => $this->getText( 'label[for="' . $select->attr( 'id' ) . '"]' ),
-                                    'value' => $option->text(),
-                                    'price' => $option->attr( 'price' ),
-                                    'id' => $option->attr( 'value' ),
-                                ];
-                                $option_values[] = $option->attr( 'value' );
-                            }
-                        } );
-                    if ( $option_values ) {
-                        $option_groups[] = $option_values;
-                    }
-                }
-            } );
-
-        return [ $options, $option_groups ];
+        return $options;
     }
 
     public function beforeParse(): void
@@ -313,6 +192,7 @@ class Parser extends HtmlParser
             'price' => StringHelper::getFloat( $this->getAttr( '[itemprop="price"]', 'content' ) ),
             'sku' => $sku,
             'categories' => $this->getContent( '.items .category a' ),
+            'min' => $this->exists( '#qty' ) ? $this->getAttr( '#qty', 'value' ) : 1,
             'description' => preg_replace( self::NOT_VALID_PARTS_OF_DESC_REGEXES, '', $this->getHtml( '#description .description' ) ),
         ];
 
@@ -397,7 +277,7 @@ class Parser extends HtmlParser
 
     public function getMinAmount(): ?int
     {
-        return $this->exists( '#qty' ) ? $this->getAttr( '#qty', 'value' ) : 1;
+        return $this->product_info[ 'min' ] ?? 1;
     }
 
     public function getAvail(): ?int
@@ -409,29 +289,30 @@ class Parser extends HtmlParser
     {
         $child = [];
 
-        [ $options, $option_groups ] = $this->getOptionsAndGroups();
+        $options = $this->getSwatchOptions();
 
-        if ( count( $option_groups ) === 1 ) {
-            foreach ( $options as $option ) {
-                [ $name, $mpn, $price ] = $this->getDefaultNameMpnPrice();
+        foreach ( $options as $option ) {
+            $name = '';
+            $name .= $option[ 'name' ];
+            $name .= ': ';
+            $name .= $option[ 'value' ];
 
-                if ( isset( $option[ 'images' ] ) ) {
-                    $images = $this->formattedImages( $option[ 'images' ] );
-                }
+            $fi = clone $parent_fi;
 
-                $this->prepareNameAndMpnAndPrice( $option, $name, $mpn, $price );
+            $fi->setProduct( $name );
+            $fi->setCostToUs( $option[ 'price' ] );
+            $fi->setRAvail( $this->getAvail() );
+            $fi->setImages( isset( $option[ 'images' ] ) ? $this->formattedImages( $option[ 'images' ] ) : $this->getImages() );
 
-                $this->childClone( $parent_fi, $child, $name, $mpn, $price, $images ?? null );
-            }
-        }
-        else {
-            $combination_of_groups = $this->combinations( $option_groups );
+            $fi->setDimX( $this->getDimX() );
+            $fi->setDimY( $this->getDimY() );
+            $fi->setDimZ( $this->getDimZ() );
 
-            foreach ( $combination_of_groups as $option_values ) {
-                [ $name, $mpn, $price, $images ] = $this->getChildNameAndMpnAndPriceAndImagesInGroup( $option_values, $options );
+            $fi->setWeight( $this->getWeight() );
 
-                $this->childClone( $parent_fi, $child, $name, $mpn, $price, $images );
-            }
+            $fi->setMpn( $option[ 'sku' ] );
+
+            $child[] = $fi;
         }
 
         return $child;
