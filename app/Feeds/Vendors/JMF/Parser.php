@@ -17,10 +17,10 @@ class Parser extends HtmlParser
 
     public const DIMS_KEYS = [
         'XZY' => [
-            'Net Dimensions (W x D x H)'
+            'Net Dimensions (W x D x H)',
         ],
         'YXZ' => [
-          'Dimensions, Exterior'
+            'Dimensions, Exterior',
         ],
     ];
 
@@ -122,7 +122,7 @@ class Parser extends HtmlParser
                 $this->pushWeight( $key, $value );
 
                 foreach ( self::DIMS_KEYS as $xyz => $strings ) {
-                    foreach ( $strings as $str) {
+                    foreach ( $strings as $str ) {
                         if ( false !== stripos( $key, $str ) ) {
                             $this->product_info[ 'dims' ] = match ( $xyz ) {
                                 'XZY' => FeedHelper::getDimsInString( $value, 'x', 0, 2, 1 ),
