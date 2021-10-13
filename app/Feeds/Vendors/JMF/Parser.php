@@ -395,9 +395,14 @@ class Parser extends HtmlParser
         return $this->product_info[ 'weight' ] ?? null;
     }
 
+    public function getMinAmount(): ?int
+    {
+        return $this->exists( '#qty' ) ? $this->getAttr( '#qty', 'value' ) : 1;
+    }
+
     public function getAvail(): ?int
     {
-        return $this->exists( '#qty' ) ? $this->getAttr( '#qty', 'value' ) : self::DEFAULT_AVAIL_NUMBER;
+        return self::DEFAULT_AVAIL_NUMBER;
     }
 
     public function getChildProducts( FeedItem $parent_fi ): array
