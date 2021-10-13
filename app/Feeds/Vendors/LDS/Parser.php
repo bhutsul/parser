@@ -198,9 +198,12 @@ class Parser extends HtmlParser
                     if ( str_contains( $text, ':' ) ) {
                         [ $key, $value ] = explode( ':', $text, 2 );
                         if ( false !== stripos( $key, 'upc' ) ) {
-                            $this->product_info['upc'] = $value;
+                            $this->product_info[ 'upc' ] = $value;
                         }
-                        $this->product_info['attributes'][ trim( $key ) ] = trim( StringHelper::normalizeSpaceInString( $value ) );
+
+                        if ( !empty( $key ) && !empty( $value ) ) {
+                            $this->product_info[ 'attributes' ][ trim( $key ) ] = trim( StringHelper::normalizeSpaceInString( $value ) );
+                        }
                     }
                     else {
                         $this->product_info[ 'short_description' ][] = $text;

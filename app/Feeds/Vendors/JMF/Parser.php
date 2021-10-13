@@ -12,12 +12,24 @@ class Parser extends HtmlParser
 {
     public const NOT_VALID_PARTS_OF_DESC_REGEXES = [
         '/<div\b[^>]+\bclass=[\'\"]prod-faq[\'\"][^>]*>(.*?)<\/div>/s',
+        '/<p>• UN\/DOT.*?compatibility<\/p>/si',
+        '/<br><strong>note:.*?minimum order.*?<br>/si',
+    ];
+
+    public const DIMS_KEYS = [
+        'XZY' => [
+            'Net Dimensions (W x D x H)',
+        ],
+        'YXZ' => [
+            'Dimensions, Exterior',
+        ],
     ];
 
     public const NOT_VALID_ATTRIBUTES = [
         'Model No',
         'Net weight',
         'Net Dimensions',
+        'Dimensions, exterior',
     ];
 
     private array $product_info;
@@ -110,8 +122,16 @@ class Parser extends HtmlParser
 
                 $this->pushWeight( $key, $value );
 
-                if ( false !== stripos( $key, 'Net Dimensions (W x D x H)' ) ) {
-                    $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, 'x', 0, 2, 1 );
+                foreach ( self::DIMS_KEYS as $xyz => $strings ) {
+                    foreach ( $strings as $str ) {
+                        if ( false !== stripos( $key, $str ) ) {
+                            $this->product_info[ 'dims' ] = match ( $xyz ) {
+                                'XZY' => FeedHelper::getDimsInString( $value, 'x', 0, 2, 1 ),
+                                'YXZ' => FeedHelper::getDimsInString( $value, 'x', 1, 0 ),
+                            };
+                            break 2;
+                        }
+                    }
                 }
 
                 if ( $this->isAttributeValid( $key ) ) {
@@ -165,7 +185,7 @@ class Parser extends HtmlParser
         $fi = clone $parent_fi;
 
         $fi->setProduct( $name );
-        $fi->setCostToUs( $this->getCostToUs() + $price );
+        $fi->setCostToUs( $price );
         $fi->setRAvail( $this->getAvail() );
         $fi->setImages( $images ?? $this->getImages() );
 
@@ -208,15 +228,14 @@ class Parser extends HtmlParser
         $name .= ': ';
         $name .= $option[ 'value' ];
 
-        $mpn .= '-';
-        $mpn .= $option[ 'id' ];
+        $mpn .= $option[ 'sku' ];
 
         $price += $option[ 'price' ];
     }
 
     private function getDefaultNameMpnPrice(): array
     {
-        return [ '', $this->getMpn(), 0 ];
+        return [ '', '', 0 ];
     }
 
     private function getOptionsAndGroups(): array
@@ -233,7 +252,6 @@ class Parser extends HtmlParser
                         $options[ $option[ 'id' ] ] = [
                             'name' => $attribute[ 'label' ],
                             'value' => $option[ 'label' ],
-                            'price' => 0,
                             'id' => $option[ 'id' ],
                         ];
 
@@ -243,7 +261,9 @@ class Parser extends HtmlParser
                                     isset( $options_index[ $attribute[ 'id' ] ], $this->product_info[ 'swatch' ][ 'images' ][ $key ] )
                                     && $options_index[ $attribute[ 'id' ] ] === $option[ 'id' ]
                                 ) {
+                                    $options[ $option[ 'id' ] ][ 'sku' ] = $options_index[ 'sku' ];
                                     $options[ $option[ 'id' ] ][ 'images' ] = $this->product_info[ 'swatch' ][ 'images' ][ $key ];
+                                    $options[ $option[ 'id' ] ][ 'price' ] = $this->product_info[ 'swatch' ][ 'optionPrices' ][ $key ][ 'finalPrice' ][ 'amount' ];
 
                                     break;
                                 }
@@ -373,6 +393,11 @@ class Parser extends HtmlParser
     public function getWeight(): ?float
     {
         return $this->product_info[ 'weight' ] ?? null;
+    }
+
+    public function getMinAmount(): ?int
+    {
+        return $this->exists( '#qty' ) ? $this->getAttr( '#qty', 'value' ) : 1;
     }
 
     public function getAvail(): ?int
