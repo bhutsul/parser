@@ -13,7 +13,7 @@ class Parser extends HtmlParser
     public const NOT_VALID_PARTS_OF_DESC_REGEXES = [
         '/<div\b[^>]+\bclass=[\'\"]prod-faq[\'\"][^>]*>(.*?)<\/div>/s',
         '/<p>• UN\/DOT.*?compatibility<\/p>/si',
-        '/<br><strong>note:.*?order quantity for this SKU is \d+<br>/si',
+        '/<br><strong>note:.*?minimum order.*?<br>/si',
     ];
 
     public const DIMS_KEYS = [
