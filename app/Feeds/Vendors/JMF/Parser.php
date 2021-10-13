@@ -397,7 +397,7 @@ class Parser extends HtmlParser
 
     public function getAvail(): ?int
     {
-        return $this->exists('#qty') ? $this->getAttr('#qty', 'value') : self::DEFAULT_AVAIL_NUMBER;
+        return $this->exists( '#qty' ) ? $this->getAttr( '#qty', 'value' ) : self::DEFAULT_AVAIL_NUMBER;
     }
 
     public function getChildProducts( FeedItem $parent_fi ): array
