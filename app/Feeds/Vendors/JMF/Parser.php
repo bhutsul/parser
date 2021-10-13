@@ -13,6 +13,7 @@ class Parser extends HtmlParser
     public const NOT_VALID_PARTS_OF_DESC_REGEXES = [
         '/<div\b[^>]+\bclass=[\'\"]prod-faq[\'\"][^>]*>(.*?)<\/div>/s',
         '/<p>• UN\/DOT.*?compatibility<\/p>/si',
+        '/<br><strong>note:.*?is 25<br>/si',
     ];
 
     public const DIMS_KEYS = [
@@ -396,7 +397,7 @@ class Parser extends HtmlParser
 
     public function getAvail(): ?int
     {
-        return self::DEFAULT_AVAIL_NUMBER;
+        return $this->exists('#qty') ? $this->getAttr('#qty', 'value') : self::DEFAULT_AVAIL_NUMBER;
     }
 
     public function getChildProducts( FeedItem $parent_fi ): array
