@@ -207,7 +207,7 @@ class Parser extends HtmlParser
 
     public function isGroup(): bool
     {
-        return $this->exists( '#product-options-wrapper select' ) || !empty( $this->product_info[ 'swatch' ][ 'attributes' ] );
+        return !empty( $this->product_info[ 'swatch' ][ 'attributes' ] );
     }
 
     public function getProduct(): string
