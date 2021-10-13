@@ -15,10 +15,20 @@ class Parser extends HtmlParser
         '/<p>• UN\/DOT.*?compatibility<\/p>/si',
     ];
 
+    public const DIMS_KEYS = [
+        'XZY' => [
+            'Net Dimensions (W x D x H)'
+        ],
+        'YXZ' => [
+          'Dimensions, Exterior'
+        ],
+    ];
+
     public const NOT_VALID_ATTRIBUTES = [
         'Model No',
         'Net weight',
         'Net Dimensions',
+        'Dimensions, exterior',
     ];
 
     private array $product_info;
@@ -111,8 +121,16 @@ class Parser extends HtmlParser
 
                 $this->pushWeight( $key, $value );
 
-                if ( false !== stripos( $key, 'Net Dimensions (W x D x H)' ) ) {
-                    $this->product_info[ 'dims' ] = FeedHelper::getDimsInString( $value, 'x', 0, 2, 1 );
+                foreach ( self::DIMS_KEYS as $xyz => $strings ) {
+                    foreach ( $strings as $str) {
+                        if ( false !== stripos( $key, $str ) ) {
+                            $this->product_info[ 'dims' ] = match ( $xyz ) {
+                                'XZY' => FeedHelper::getDimsInString( $value, 'x', 0, 2, 1 ),
+                                'YXZ' => FeedHelper::getDimsInString( $value, 'x', 1, 0 ),
+                            };
+                            break 2;
+                        }
+                    }
                 }
 
                 if ( $this->isAttributeValid( $key ) ) {
