@@ -320,18 +320,16 @@ class Parser extends HtmlParser
         $child = [];
 
         foreach ( $this->fetchChild() as $item ) {
-            if ( isset( $item[ 'price' ] ) ) {
-                $fi = clone $parent_fi;
+            $fi = clone $parent_fi;
 
-                $fi->setProduct( $item[ 'name' ] );
-                $fi->setCostToUs( $item[ 'price' ] );
-                $fi->setRAvail( $this->getAvail() );
-                $fi->setImages( !empty( $item[ 'images' ] ) ? $item[ 'images' ] : $this->getImages() );
+            $fi->setProduct( $item[ 'name' ] );
+            $fi->setCostToUs( $item[ 'price' ] ?? 0 );
+            $fi->setRAvail( $this->getAvail() );
+            $fi->setImages( !empty( $item[ 'images' ] ) ? $item[ 'images' ] : $this->getImages() );
 
-                $fi->setMpn( $item[ 'sku' ] );
+            $fi->setMpn( $item[ 'sku' ] ?? '' );
 
-                $child[] = $fi;
-            }
+            $child[] = $fi;
         }
 
         return $child;
