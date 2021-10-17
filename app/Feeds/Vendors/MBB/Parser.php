@@ -43,6 +43,6 @@ class Parser extends WoocommerceParser
 
     public function getAvail(): ?int
     {
-        return isset( $this->product_info[ 'offer' ][ 'availability' ] ) && $this->product_info[ 'offer' ][ 'availability' ] !== 'http://schema.org/InStock' ? self::DEFAULT_AVAIL_NUMBER : 0;
+        return isset( $this->product_info[ 'offer' ][ 'availability' ] ) && $this->product_info[ 'offer' ][ 'availability' ] === 'http://schema.org/InStock' ? self::DEFAULT_AVAIL_NUMBER : 0;
     }
 }
