@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Feeds\Vendors\MBB;
+namespace App\Feeds\Vendors\MBB_US;
 
 use App\Feeds\Parser\WoocommerceParser;
 
