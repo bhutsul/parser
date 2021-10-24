@@ -13,12 +13,16 @@ class Parser extends HtmlParser
 
     private array $shipping_dims;
     private array $attributes;
+    private string $description;
 
     private function parseDims(): void
     {
-        $contains_more_boxes = preg_match('/box\s\d/i', $this->getText('#boxing'));
+        if ( $this->filter( '#boxing .row .row' )->count() > 4 ) {
+            $this->description .= $this->getHtml( '#boxing' );
+            return;
+        }
 
-        $this->filter( '#boxing .row .row' )->each( function ( ParserCrawler $c ) use ($contains_more_boxes) {
+        $this->filter( '#boxing .row .row' )->each( function ( ParserCrawler $c ) {
             $node = $c->getNode( 0 );
 
             if ( !$node ) {
@@ -28,53 +32,74 @@ class Parser extends HtmlParser
             [ $key, $value ] = explode( ':', $node->textContent, 2 );
 
             if ( $value && $key ) {
-                if ($contains_more_boxes) {
-                    $name_of_box = $c->parents()->getText('p');
-                    $key = $name_of_box . ': ' . trim( $key );
-                    $this->attributes[ $key ] = trim( StringHelper::normalizeSpaceInString( $value ) );
-                } else {
-                    if ( false !== stripos( $key, 'Box dimensions' ) ) {
-                        $this->shipping_dims = FeedHelper::getDimsInString( $value, 'x', 2, 0, 1 );
-                    }
+                if ( false !== stripos( $key, 'Box dimensions' ) ) {
+                    $this->shipping_dims = FeedHelper::getDimsInString( $value, 'x', 2, 0, 1 );
+                }
 
-                    if ( false !== stripos( $key, 'Total weight' ) ) {
-                        $this->shipping_dims[ 'weight' ] = StringHelper::getFloat( $value );
-                    }
+                if ( false !== stripos( $key, 'Total weight' ) ) {
+                    $this->shipping_dims[ 'weight' ] = StringHelper::getFloat( $value );
                 }
             }
         } );
     }
 
-    private function parsedParts(): string
+    private function parseParts(): void
     {
         if ( !$this->exists( '#components' ) ) {
-            return '';
+            return;
         }
 
-        $parts = '<p>Package includes</p>';
+        $parts = '<p>Package includes</p><table><tbody>';
 
-        $table_values = $this->filter( '#components table tr' );
+        $head_of_table = $this->filter( '#components table tr' )->first();
 
-        for ( $i = 1; $i < $table_values->count(); $i++ ) {
-            $values = $table_values->eq( $i );
+        $parts .= '<tr>';
+        $head_of_table->filter( '#components table th' )->each( function ( ParserCrawler $c ) use ( &$parts ) {
+            $parts .= '<th>';
+            $parts .= $c->text();
+            $parts .= '</th>';
+        } );
+        $parts .= '</tr>';
 
-            $product_code = $values->filter( 'td' )->first()->text();
-            if ( $product_code ) {
-                $parts .= '<p>product_code ' . $product_code . '</p>';
-            }
-        }
+        $head_of_table->nextAll()->each( function ( ParserCrawler $c ) use ( &$parts ) {
+            $parts .= '<tr>';
+            $c->filter( 'td' )->each( function ( ParserCrawler $c ) use ( &$parts ) {
+                $parts .= '<td>';
+                if ( $c->previousAll()->count() === 0 ) {
+                    $parts .= $this->vendor->getPrefix() . $c->text();
+                }
+                else {
+                    $parts .= $c->text();
+                }
+                $parts .= '</td>';
+            } );
+            $parts .= '</tr>';
+        } );
 
-        return $parts;
+        $this->description .= $parts;
     }
 
     public function beforeParse(): void
     {
+        $this->description = preg_replace( [
+            '/<b>PLEASE NOTE.*?7945[.]?<\/b>/si',
+            '/<b>This kit does NOT.*?available.<\/b>/si',
+        ], '', $this->getHtml( '#lblLongDesc' ) );
+
+        $this->attributes[ 'Unit' ] = $this->getText( 'span#lblUnitOfMeasure' );
+
+        $this->parseParts();
         $this->parseDims();
     }
 
     public function getProduct(): string
     {
         return $this->getText( '#lblProductCategory' );
+    }
+
+    public function getMinAmount(): ?int
+    {
+        return StringHelper::getFloat( '#lblDefaultQty' );
     }
 
     public function getCostToUs(): float
@@ -89,11 +114,7 @@ class Parser extends HtmlParser
 
     public function getDescription(): string
     {
-        $description = preg_replace( [
-            '/<b>PLEASE NOTE.*?7945[.]?<\/b>/si',
-        ], '', $this->getHtml( '#lblLongDesc' ) );
-
-        return $description . $this->parsedParts();
+        return $this->description;
     }
 
     public function getImages(): array
@@ -108,21 +129,9 @@ class Parser extends HtmlParser
         return $this->attributes ?? null;
     }
 
-    public function getProductFiles(): array
-    {
-        if ( !$this->exists( '#hlCatalog' ) ) {
-            return [];
-        }
-
-        return [ [
-            'name' => rtrim( $this->getText( '#hlCatalog' ), ' (PDF)' ),
-            'link' => self::URI . ltrim( $this->getAttr( '#hlCatalog', 'href' ), '.' )
-        ] ];
-    }
-
     public function getAvail(): ?int
     {
-        return self::DEFAULT_AVAIL_NUMBER;
+        return $this->exists( '#lblQtyAvailable' ) ? StringHelper::getFloat( $this->getText('#lblQtyAvailable') ) : self::DEFAULT_AVAIL_NUMBER;
     }
 
     public function getShippingDimX(): ?float
