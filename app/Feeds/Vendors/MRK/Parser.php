@@ -76,6 +76,8 @@ class Parser extends HtmlParser
             $parts .= '</tr>';
         } );
 
+        $parts .= '</table></tbody>';
+
         $this->description .= $parts;
     }
 
