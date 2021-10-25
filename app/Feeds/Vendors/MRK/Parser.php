@@ -54,7 +54,10 @@ class Parser extends HtmlParser
         $head_of_table = $this->filter( '#components table tr' )->first();
 
         $parts .= '<tr>';
-        $head_of_table->filter( '#components table th' )->each( function ( ParserCrawler $c ) use ( &$parts ) {
+        $head_of_table->filter( 'th' )->each( function ( ParserCrawler $c ) use ( &$parts ) {
+            if ( $c->nextAll()->count() < 2 ) {
+                return;
+            }
             $parts .= '<th>';
             $parts .= $c->text();
             $parts .= '</th>';
@@ -62,18 +65,23 @@ class Parser extends HtmlParser
         $parts .= '</tr>';
 
         $head_of_table->nextAll()->each( function ( ParserCrawler $c ) use ( &$parts ) {
-            $parts .= '<tr>';
-            $c->filter( 'td' )->each( function ( ParserCrawler $c ) use ( &$parts ) {
-                $parts .= '<td>';
-                if ( $c->previousAll()->count() === 0 ) {
-                    $parts .= $this->vendor->getPrefix() . $c->text();
-                }
-                else {
-                    $parts .= $c->text();
-                }
-                $parts .= '</td>';
-            } );
-            $parts .= '</tr>';
+            if ( $c->nextAll()->count() !== 0 ) {
+                $parts .= '<tr>';
+                $c->filter( 'td' )->each( function ( ParserCrawler $c ) use ( &$parts ) {
+                    if ( $c->nextAll()->count() < 2 ) {
+                        return;
+                    }
+                    $parts .= '<td>';
+                    if ( $c->previousAll()->count() === 0 ) {
+                        $parts .= $this->vendor->getPrefix() . $c->text();
+                    }
+                    else {
+                        $parts .= $c->text();
+                    }
+                    $parts .= '</td>';
+                } );
+                $parts .= '</tr>';
+            }
         } );
 
         $parts .= '</table></tbody>';
@@ -85,7 +93,7 @@ class Parser extends HtmlParser
     {
         $this->description = preg_replace( [
             '/<b>PLEASE NOTE.*?7945[.]?<\/b>/si',
-            '/<b>This kit does NOT.*?available.<\/b>/si',
+            '/<b>This kit does NOT.*?.<\/b>/si',
         ], '', $this->getHtml( '#lblLongDesc' ) );
 
         $this->attributes[ 'Unit' ] = $this->getText( 'span#lblUnitOfMeasure' );
@@ -101,7 +109,7 @@ class Parser extends HtmlParser
 
     public function getMinAmount(): ?int
     {
-        return StringHelper::getFloat( '#lblDefaultQty' );
+        return StringHelper::getFloat( $this->getText( '#lblDefaultQty' ), 1 );
     }
 
     public function getCostToUs(): float
@@ -133,7 +141,7 @@ class Parser extends HtmlParser
 
     public function getAvail(): ?int
     {
-        return $this->exists( '#lblQtyAvailable' ) ? StringHelper::getFloat( $this->getText('#lblQtyAvailable') ) : self::DEFAULT_AVAIL_NUMBER;
+        return $this->exists( '#lblQtyAvailable' ) ? StringHelper::getFloat( $this->getText( '#lblQtyAvailable' ), self::DEFAULT_AVAIL_NUMBER ) : self::DEFAULT_AVAIL_NUMBER;
     }
 
     public function getShippingDimX(): ?float
