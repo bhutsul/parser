@@ -96,7 +96,7 @@ class Parser extends HtmlParser
             '/<b>.*?<\/b>/si',
         ], '', $this->getHtml( '#lblLongDesc' ) );
 
-        if ( $this->exists( '#lblUnitOfMeasure' ) ) {
+        if ( $this->exists( '#lblUnitOfMeasure' ) && $this->getText( '#lblUnitOfMeasure' ) ) {
             $this->attributes[ 'Unit' ] = $this->getText( '#lblUnitOfMeasure' );
         }
         $this->parseParts();
