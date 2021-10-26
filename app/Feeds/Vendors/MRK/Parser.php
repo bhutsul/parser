@@ -2,6 +2,7 @@
 
 namespace App\Feeds\Vendors\MRK;
 
+use App\Feeds\Feed\FeedItem;
 use App\Feeds\Parser\HtmlParser;
 use App\Feeds\Utils\ParserCrawler;
 use App\Helpers\FeedHelper;
@@ -101,12 +102,12 @@ class Parser extends HtmlParser
         $this->parseParts();
         $this->parseDims();
     }
-    
+
     public function afterParse( FeedItem $fi ): void
     {
-        if ( false !== stripos( $this->getProduct(), 'gift' ) {
+        if ( false !== stripos( $this->getProduct(), 'gift' ) ) {
             $fi->setCostToUs( 0 );
-            $fi->setRAvail( null );
+            $fi->setRAvail();
             $fi->setMpn( '' );
             $fi->setImages( [] );
         }
