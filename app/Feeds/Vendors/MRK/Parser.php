@@ -101,6 +101,16 @@ class Parser extends HtmlParser
         $this->parseParts();
         $this->parseDims();
     }
+    
+    public function afterParse( FeedItem $fi ): void
+    {
+        if ( false !== stripos( $this->getProduct(), 'gift' ) {
+            $fi->setCostToUs( 0 );
+            $fi->setRAvail( null );
+            $fi->setMpn( '' );
+            $fi->setImages( [] );
+        }
+    }
 
     public function getProduct(): string
     {
@@ -136,7 +146,7 @@ class Parser extends HtmlParser
 
     public function getAttributes(): ?array
     {
-        return $this->attributes ?? null;
+        return !empty( $this->attributes ) ? $this->attributes : null;
     }
 
     public function getAvail(): ?int
