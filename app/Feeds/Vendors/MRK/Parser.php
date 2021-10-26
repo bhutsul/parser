@@ -93,12 +93,12 @@ class Parser extends HtmlParser
     public function beforeParse(): void
     {
         $this->description = preg_replace( [
-            '/<b>PLEASE NOTE.*?7945[.]?<\/b>/si',
-            '/<b>This kit does NOT.*?.<\/b>/si',
+            '/<b>.*?<\/b>/si',
         ], '', $this->getHtml( '#lblLongDesc' ) );
 
-        $this->attributes[ 'Unit' ] = $this->getText( 'span#lblUnitOfMeasure' );
-
+        if ( $this->exists( '#lblUnitOfMeasure' ) ) {
+            $this->attributes[ 'Unit' ] = $this->getText( '#lblUnitOfMeasure' );
+        }
         $this->parseParts();
         $this->parseDims();
     }
