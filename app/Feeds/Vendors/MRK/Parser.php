@@ -90,16 +90,46 @@ class Parser extends HtmlParser
         $this->description .= $parts;
     }
 
+    private function parseGroups(): void
+    {
+        $final_table = '<table>';
+        $this->filter( '#morespecs div.col-sm-6' )->each( function ( ParserCrawler $c ) use ( &$final_table ) {
+            if ( str_contains( $c->text(), 'Grouped:' ) ) {
+                $html = $c->html();
+
+                $array_tables = explode( "‹br>", $html );
+                foreach ( $array_tables as $table_part ) {
+                    if ( StringHelper::isNotEmpty( $table_part ) ) {
+                        $crawler = new ParserCrawler( $table_part );
+
+                        $crawler->filter( 'div.row' )->each( function ( ParserCrawler $c2 ) use ( &$final_table ) {
+                            $final_table .= '<tr><td>'
+                                . $c2->getText( '.col-sm-2' )
+                                . '</td><td>'
+                                . $c2->getText( '.col-sm-10' )
+                                . '</td></tr>';
+                        } );
+                    }
+                }
+            }
+        } );
+
+        $final_table .= '</table>';
+
+        $this->description .= $final_table;
+    }
+
     public function beforeParse(): void
     {
         $this->description = preg_replace( [
-            '/<b>.*?<\/b>/si',
+            ' /<b >.*?<\/b >/si',
         ], '', $this->getHtml( '#lblLongDesc' ) );
 
         if ( $this->exists( '#lblUnitOfMeasure' ) && $this->getText( '#lblUnitOfMeasure' ) ) {
             $this->attributes[ 'Unit' ] = $this->getText( '#lblUnitOfMeasure' );
         }
         $this->parseParts();
+        $this->parseGroups();
         $this->parseDims();
     }
 
