@@ -92,22 +92,29 @@ class Parser extends HtmlParser
 
     private function parseGroups(): void
     {
-        $final_table = '<table>';
+        $final_table = '<p>Grouped:</p><table>';
         $this->filter( '#morespecs div.col-sm-6' )->each( function ( ParserCrawler $c ) use ( &$final_table ) {
             if ( str_contains( $c->text(), 'Grouped:' ) ) {
                 $html = $c->html();
 
-                $array_tables = explode( "‹br>", $html );
+                $array_tables = explode( "<br>", $html );
+                $i = 1;
                 foreach ( $array_tables as $table_part ) {
-                    if ( StringHelper::isNotEmpty( $table_part ) ) {
+                    if ( StringHelper::isNotEmpty( $table_part ) && false === stripos($table_part, 'Grouped:') ) {
+                        $final_table .= '<tr><td>Group ' . $i . '</td><td></td></tr>';
+                        $i++;
+
                         $crawler = new ParserCrawler( $table_part );
 
                         $crawler->filter( 'div.row' )->each( function ( ParserCrawler $c2 ) use ( &$final_table ) {
-                            $final_table .= '<tr><td>'
-                                . $c2->getText( '.col-sm-2' )
-                                . '</td><td>'
-                                . $c2->getText( '.col-sm-10' )
-                                . '</td></tr>';
+                            $final_table .= '<tr>';
+                            if ( StringHelper::isNotEmpty( $c2->getText( '.col-sm-2' ) ) ) {
+                                $final_table .= '<td>' . $c2->getText( '.col-sm-2' ) . '</td>';
+                            } else {
+                                $final_table .= '<td>-</td>';
+                            }
+                            $final_table .= '<td>' . $c2->getText( '.col-sm-10' ) . '</td>';
+                            $final_table .= '</tr>';
                         } );
                     }
                 }
