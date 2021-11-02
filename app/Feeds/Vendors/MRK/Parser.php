@@ -101,7 +101,7 @@ class Parser extends HtmlParser
                 $i = 1;
                 foreach ( $array_tables as $table_part ) {
                     if ( StringHelper::isNotEmpty( $table_part ) && false === stripos($table_part, 'Grouped:') ) {
-                        $final_table .= '<strong>Group ' . $i . '</strong>';
+                        $final_table .= '<br><strong>Group ' . $i . '</strong>';
                         $i++;
 
                         $crawler = new ParserCrawler( $table_part );
