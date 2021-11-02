@@ -92,7 +92,7 @@ class Parser extends HtmlParser
 
     private function parseGroups(): void
     {
-        $final_table = '<p>Grouped:</p><table>';
+        $final_table = '<p><strong>Grouped:</strong></p><table>';
         $this->filter( '#morespecs div.col-sm-6' )->each( function ( ParserCrawler $c ) use ( &$final_table ) {
             if ( str_contains( $c->text(), 'Grouped:' ) ) {
                 $html = $c->html();
@@ -101,7 +101,7 @@ class Parser extends HtmlParser
                 $i = 1;
                 foreach ( $array_tables as $table_part ) {
                     if ( StringHelper::isNotEmpty( $table_part ) && false === stripos($table_part, 'Grouped:') ) {
-                        $final_table .= '<tr><td>Group ' . $i . '</td><td></td></tr>';
+                        $final_table .= '<tr><td><strong>Group ' . $i . '</strong></td><td></td></tr>';
                         $i++;
 
                         $crawler = new ParserCrawler( $table_part );
@@ -111,7 +111,7 @@ class Parser extends HtmlParser
                             if ( StringHelper::isNotEmpty( $c2->getText( '.col-sm-2' ) ) ) {
                                 $final_table .= '<td>' . $c2->getText( '.col-sm-2' ) . '</td>';
                             } else {
-                                $final_table .= '<td>-</td>';
+                                $final_table .= '<td>&nbsp;</td>';
                             }
                             $final_table .= '<td>' . $c2->getText( '.col-sm-10' ) . '</td>';
                             $final_table .= '</tr>';
