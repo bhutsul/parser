@@ -131,7 +131,7 @@ class Parser extends HtmlParser
     public function beforeParse(): void
     {
         $this->description = preg_replace( [
-            ' /<b >.*?<\/b >/si',
+            '/<b>.*?<\/b>/si',
         ], '', $this->getHtml( '#lblLongDesc' ) );
 
         if ( $this->exists( '#lblUnitOfMeasure' ) && $this->getText( '#lblUnitOfMeasure' ) ) {
