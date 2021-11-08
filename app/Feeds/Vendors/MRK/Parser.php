@@ -124,8 +124,12 @@ class Parser extends HtmlParser
                 }
             }
         } );
-
-        $this->description .= $final_table;
+        
+        $crawler = new ParserCrawler( $final_table );
+        
+        if ( $crawler->filter( 'tr' )->count() > 2 ) {
+            $this->description .= $final_table;
+        }
     }
 
     public function beforeParse(): void
@@ -137,9 +141,9 @@ class Parser extends HtmlParser
         if ( $this->exists( '#lblUnitOfMeasure' ) && $this->getText( '#lblUnitOfMeasure' ) ) {
             $this->attributes[ 'Unit' ] = $this->getText( '#lblUnitOfMeasure' );
         }
+        $this->parseDims();
         $this->parseParts();
         $this->parseGroups();
-        $this->parseDims();
     }
 
     public function afterParse( FeedItem $fi ): void
