@@ -9,6 +9,7 @@ use App\Feeds\Utils\Link;
 class Vendor extends SitemapHttpProcessor
 {
     protected array $first = [ 'https://www.mar-k.com/sitemap.xml' ];
+    public array $custom_products = ['https://www.mar-k.com/partDetails.aspx?lid=8728'];
 
     protected function isValidFeedItem( FeedItem $fi ): bool
     {

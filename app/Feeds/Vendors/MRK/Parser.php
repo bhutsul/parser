@@ -19,7 +19,7 @@ class Parser extends HtmlParser
     private function parseDims(): void
     {
         if ( $this->filter( '#boxing .row .row' )->count() > 4 ) {
-            $this->description .= $this->getHtml( '#boxing' );
+            $this->description .= $this->getHtml( '#boxing' ) . '<br />';
             return;
         }
 
@@ -50,7 +50,7 @@ class Parser extends HtmlParser
             return;
         }
 
-        $parts = '<p>Package includes</p><table><tbody>';
+        $parts = '<p><strong>Package includes</strong></p><table><tbody>';
 
         $head_of_table = $this->filter( '#components table tr' )->first();
 
@@ -85,7 +85,7 @@ class Parser extends HtmlParser
             }
         } );
 
-        $parts .= '</table></tbody>';
+        $parts .= '</tbody></table><br />';
 
         $this->description .= $parts;
     }
@@ -101,7 +101,7 @@ class Parser extends HtmlParser
                 $i = 1;
                 foreach ( $array_tables as $table_part ) {
                     if ( StringHelper::isNotEmpty( $table_part ) && false === stripos($table_part, 'Grouped:') ) {
-                        $final_table .= '<br /><strong>Group ' . $i . '</strong><br />';
+                        $final_table .= '<strong>Group ' . $i . '</strong>';
                         $i++;
 
                         $crawler = new ParserCrawler( $table_part );
@@ -119,7 +119,7 @@ class Parser extends HtmlParser
                             $final_table .= '</tr>';
                         } );
                         
-                        $final_table .= '</table>';
+                        $final_table .= '</table><br />';
                     }
                 }
             }
